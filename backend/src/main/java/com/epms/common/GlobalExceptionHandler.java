@@ -13,14 +13,14 @@ import java.util.UUID;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
-    public R<Void> handleBizException(BizException e, HttpServletRequest request) {
+    public R<Object> handleBizException(BizException e, HttpServletRequest request) {
         String traceId = UUID.randomUUID().toString().substring(0, 8);
         log.error("BizException: {} - traceId: {}", e.getMessage(), traceId);
         return R.fail(e.getCode(), e.getMessage()).trace(traceId);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public R<Void> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
+    public R<Object> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
         String traceId = UUID.randomUUID().toString().substring(0, 8);
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(err -> err.getField() + ": " + err.getDefaultMessage())
@@ -31,7 +31,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public R<Void> handleException(Exception e, HttpServletRequest request) {
+    public R<Object> handleException(Exception e, HttpServletRequest request) {
         String traceId = UUID.randomUUID().toString().substring(0, 8);
         log.error("Unexpected error - traceId: {}", traceId, e);
         return R.fail(50000, "Internal server error").trace(traceId);
