@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
@@ -24,6 +24,29 @@ const updateTime = () => {
   })
 }
 
+// 角色判断
+const hasRole = (role: string) => {
+  return userStore.hasRole(role)
+}
+
+// 菜单项
+const menuItems = computed(() => {
+  const items = [
+    { index: '1', title: '我的绩效', roles: ['EMPLOYEE', 'DEPT_MANAGER', 'HR_SPECIALIST', 'EXECUTIVE', 'ADMIN'] },
+    { index: '2', title: '审批工作台', roles: ['DEPT_MANAGER', 'HR_SPECIALIST', 'EXECUTIVE', 'ADMIN'] },
+    { index: '3', title: '统计分析', roles: ['DEPT_MANAGER', 'HR_SPECIALIST', 'EXECUTIVE', 'ADMIN'] },
+    { index: '4', title: '系统管理', roles: ['ADMIN', 'HR_SPECIALIST'] }
+  ]
+  
+  // 根据用户角色过滤菜单
+  return items.filter(item => {
+    return item.roles.some(role => hasRole(role))
+  })
+})
+
+// 定时器引用
+let timeInterval: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   userStore.initFromStorage()
   if (!userStore.hasToken()) {
@@ -37,7 +60,14 @@ onMounted(() => {
   })
   
   updateTime()
-  setInterval(updateTime, 1000)
+  timeInterval = setInterval(updateTime, 1000)
+})
+
+onUnmounted(() => {
+  if (timeInterval) {
+    clearInterval(timeInterval)
+    timeInterval = null
+  }
 })
 </script>
 
@@ -55,20 +85,15 @@ onMounted(() => {
       <el-container>
         <el-aside width="200" class="sidebar">
           <el-menu
-            :default-active="'1'"
+            :default-active="menuItems[0]?.index || '1'"
             class="sidebar-menu"
           >
-            <el-menu-item index="1">
-              <span>我的绩效</span>
-            </el-menu-item>
-            <el-menu-item index="2">
-              <span>审批工作台</span>
-            </el-menu-item>
-            <el-menu-item index="3">
-              <span>统计分析</span>
-            </el-menu-item>
-            <el-menu-item index="4">
-              <span>系统管理</span>
+            <el-menu-item 
+              v-for="item in menuItems" 
+              :key="item.index" 
+              :index="item.index"
+            >
+              <span>{{ item.title }}</span>
             </el-menu-item>
           </el-menu>
         </el-aside>

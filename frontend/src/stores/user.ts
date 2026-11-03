@@ -67,6 +67,12 @@ export const useUserStore = defineStore('user', () => {
     return !!token.value
   }
 
+  // 检查是否具有某个角色
+  const hasRole = (role: string) => {
+    const roles = userInfo.value?.roles
+    return roles ? roles.includes(role) : false
+  }
+
   return {
     token,
     refreshToken,
@@ -78,6 +84,7 @@ export const useUserStore = defineStore('user', () => {
     fetchUserInfo,
     refreshAccessToken,
     initFromStorage,
-    hasToken
+    hasToken,
+    hasRole
   }
 })

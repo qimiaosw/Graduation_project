@@ -29,7 +29,18 @@ const handleLogin = async () => {
     const redirect = route.query.redirect as string
     router.push(redirect || '/')
   } catch (error: any) {
-    ElMessage.error('用户名或密码错误')
+    // 直接使用 error.message 判断（request.ts 已经不弹消息了）
+    const msg = error?.message || ''
+    if (msg.includes('Network Error') || msg.includes('ECONNREFUSED')) {
+      ElMessage.error('网络错误，请检查网络连接')
+    } else if (msg.includes('账号已停用') || msg.includes('停用')) {
+      ElMessage.error('账号已被停用，请联系管理员')
+    } else if (msg.includes('429') || msg.includes('频繁')) {
+      ElMessage.error('登录尝试过于频繁，请稍后再试')
+    } else {
+      // 默认显示后端返回的消息
+      ElMessage.error(msg || '登录失败，请稍后重试')
+    }
   } finally {
     loading.value = false
   }

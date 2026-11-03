@@ -54,6 +54,7 @@ public class AuthService {
             private String realName;
             private Long deptId;
             private String deptName;
+            private Set<String> roles;
         }
     }
 
@@ -127,6 +128,7 @@ public class AuthService {
         info.setRealName(user.getRealName());
         info.setDeptId(user.getDeptId());
         info.setDeptName(deptName);
+        info.setRoles(roles);
         result.setUserInfo(info);
 
         return result;
@@ -145,8 +147,13 @@ public class AuthService {
     }
 
     public Map<String, String> refresh(String refreshToken) {
-        // 解析 refreshToken
-        String jti = jwtUtil.getJti(refreshToken);
+        // 解析 refreshToken，捕获异常
+        String jti;
+        try {
+            jti = jwtUtil.getJti(refreshToken);
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.TOKEN_EXPIRED, "Token expired");
+        }
 
         // 检查 refreshToken 是否有效
         String refreshKey = "epms:auth:refresh:" + refreshToken;
@@ -208,6 +215,9 @@ public class AuthService {
         info.setUsername(user.getUsername());
         info.setRealName(user.getRealName());
         info.setDeptId(user.getDeptId());
+        
+        // 从 UserContext 获取角色
+        info.setRoles(ctx.getRoles());
 
         // 获取部门名称
         if (user.getDeptId() != null) {

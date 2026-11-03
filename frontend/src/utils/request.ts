@@ -53,7 +53,7 @@ service.interceptors.response.use(
         localStorage.removeItem('accessToken')
         window.location.href = '/login'
       }
-      ElMessage.error(res.message || 'Error')
+      // 不在这里弹消息，让业务层自己处理
       return Promise.reject(new Error(res.message || 'Error'))
     }
     return response.data

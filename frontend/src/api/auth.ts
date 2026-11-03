@@ -14,6 +14,7 @@ export interface LoginResponse {
     realName: string
     deptId?: number
     deptName?: string
+    roles?: string[]
   }
 }
 
