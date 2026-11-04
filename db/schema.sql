@@ -172,7 +172,7 @@ CREATE TABLE perf_cycle (
     manager_deadline DATETIME NOT NULL COMMENT '部门评审截止',
     hr_deadline DATETIME NOT NULL COMMENT 'HR 复核截止',
     final_deadline DATETIME NOT NULL COMMENT '终审截止',
-    status VARCHAR(16) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT/PUBLISHED/FINISHED/ARCHIVED',
+    status VARCHAR(16) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT/IN_PROGRESS/CLOSED',
     published_at DATETIME NULL COMMENT '启动时间',
     finished_at DATETIME NULL COMMENT '结束时间',
     remark VARCHAR(255) NULL COMMENT '备注',
@@ -193,8 +193,10 @@ CREATE TABLE perf_indicator (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
     indicator_code VARCHAR(32) NOT NULL COMMENT '指标编码，如 KPI-SALE-01',
     indicator_name VARCHAR(128) NOT NULL COMMENT '指标名称',
-    category VARCHAR(16) NOT NULL COMMENT 'QUANTITATIVE 定量 / QUALITATIVE 定性',
+    biz_category VARCHAR(16) NOT NULL COMMENT '业务分类：PERFORMANCE 业绩 / ABILITY 能力 / ATTITUDE 态度',
+    scoring_type VARCHAR(16) NOT NULL COMMENT '评分类型：QUANTITATIVE 定量 / QUALITATIVE 定性',
     unit VARCHAR(16) NULL COMMENT '单位：%、万元、个、项、分等',
+    default_weight DECIMAL(5,2) NOT NULL DEFAULT 10.00 COMMENT '默认权重',
     default_factor_code VARCHAR(16) NOT NULL COMMENT '默认归属决策因子：F1-F6',
     data_source VARCHAR(128) NULL COMMENT '数据来源口径',
     scoring_desc VARCHAR(500) NULL COMMENT '计分口径文字说明',
@@ -206,7 +208,7 @@ CREATE TABLE perf_indicator (
     deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除：0 正常 1 已删',
     PRIMARY KEY (id),
     UNIQUE KEY uk_indicator_code (indicator_code),
-    KEY idx_category (category),
+    KEY idx_biz_category (biz_category),
     KEY idx_factor (default_factor_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='指标库表';
 

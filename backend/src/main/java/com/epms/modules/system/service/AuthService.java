@@ -59,11 +59,10 @@ public class AuthService {
     }
 
     public LoginResult login(String username, String password) {
-        // 查询用户
+        // 只按用户名查询：停用账号也要能查到，否则无法区分“密码错误”和“账号停用”
         SysUser user = userMapper.selectOne(
                 new LambdaQueryWrapper<SysUser>()
                         .eq(SysUser::getUsername, username)
-                        .eq(SysUser::getStatus, 1)
         );
 
         if (user == null) {
@@ -75,9 +74,9 @@ public class AuthService {
             throw new BizException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
 
-        // 检查账号状态
-        if (user.getStatus() != 1) {
-            throw new BizException(ErrorCode.UNAUTHORIZED, "账号已停用");
+        // 密码正确后再检查账号状态，避免泄露账号是否存在
+        if (user.getStatus() == null || user.getStatus() != 1) {
+            throw new BizException(ErrorCode.FORBIDDEN, "账号已停用，请联系管理员");
         }
 
         // 生成 token

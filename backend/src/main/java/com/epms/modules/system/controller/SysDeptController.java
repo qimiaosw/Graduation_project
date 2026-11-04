@@ -1,7 +1,7 @@
 package com.epms.modules.system.controller;
 
-import com.epms.common.PageParam;
-import com.epms.common.PageResult;
+import com.epms.common.BizException;
+import com.epms.common.ErrorCode;
 import com.epms.common.R;
 import com.epms.modules.system.entity.SysDept;
 import com.epms.modules.system.service.SysDeptService;
@@ -53,8 +53,40 @@ public class SysDeptController {
     public R<SysDept> getDeptById(@PathVariable Long id) {
         SysDept dept = deptService.getById(id);
         if (dept == null) {
-            return R.fail(40400, "部门不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "部门不存在");
         }
         return R.ok(dept);
+    }
+
+    /**
+     * 新增部门
+     * 权限：ADMIN
+     */
+    @PostMapping
+    @RequireRole({"ADMIN"})
+    public R<SysDept> createDept(@RequestBody SysDept dept) {
+        return R.ok(deptService.create(dept));
+    }
+
+    /**
+     * 更新部门
+     * 权限：ADMIN
+     */
+    @PutMapping("/{id}")
+    @RequireRole({"ADMIN"})
+    public R<SysDept> updateDept(@PathVariable Long id, @RequestBody SysDept dept) {
+        dept.setId(id);
+        return R.ok(deptService.update(dept));
+    }
+
+    /**
+     * 删除部门（逻辑删除，有下级/有用户时拒绝）
+     * 权限：ADMIN
+     */
+    @DeleteMapping("/{id}")
+    @RequireRole({"ADMIN"})
+    public R<Void> deleteDept(@PathVariable Long id) {
+        deptService.delete(id);
+        return R.ok();
     }
 }

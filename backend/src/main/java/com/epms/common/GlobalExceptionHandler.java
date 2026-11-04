@@ -2,6 +2,8 @@ package com.epms.common;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -44,6 +46,20 @@ public class GlobalExceptionHandler {
                 .reduce((a, b) -> a + "; " + b)
                 .orElse("Validation failed");
         log.error("ValidationException: {} - traceId: {}", message, traceId);
+        return R.fail(40001, message).trace(traceId);
+    }
+
+    /**
+     * 处理 @Valid 绑定到查询参数对象时的校验异常（如 PageParam）
+     */
+    @ExceptionHandler(BindException.class)
+    public R<Object> handleBindException(BindException e, HttpServletRequest request) {
+        String traceId = generateTraceId();
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .reduce((a, b) -> a + "; " + b)
+                .orElse("Validation failed");
+        log.error("BindException: {} - traceId: {}", message, traceId);
         return R.fail(40001, message).trace(traceId);
     }
     

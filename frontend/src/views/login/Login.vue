@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
@@ -16,6 +16,15 @@ const loginForm = reactive({
 
 const loading = ref(false)
 
+// 被踢下线 / token 过期跳回来时，把原因提示出来
+onMounted(() => {
+  const notice = sessionStorage.getItem('loginNotice')
+  if (notice || route.query.expired) {
+    ElMessage.warning(notice || '登录状态已失效，请重新登录')
+    sessionStorage.removeItem('loginNotice')
+  }
+})
+
 const handleLogin = async () => {
   if (!loginForm.username || !loginForm.password) {
     ElMessage.warning('请输入用户名和密码')
@@ -29,14 +38,19 @@ const handleLogin = async () => {
     const redirect = route.query.redirect as string
     router.push(redirect || '/')
   } catch (error: any) {
-    // 直接使用 error.message 判断（request.ts 已经不弹消息了）
+    // request.ts 已把后端业务码挂到 error.code，优先按码精确区分提示
+    const code = error?.code as number | undefined
     const msg = error?.message || ''
-    if (msg.includes('Network Error') || msg.includes('ECONNREFUSED')) {
-      ElMessage.error('网络错误，请检查网络连接')
-    } else if (msg.includes('账号已停用') || msg.includes('停用')) {
+    if (code === 40301 || code === 40300) {
       ElMessage.error('账号已被停用，请联系管理员')
-    } else if (msg.includes('429') || msg.includes('频繁')) {
+    } else if (code === 40100 || code === 40101) {
+      ElMessage.error('用户名或密码错误')
+    } else if (code === 42900) {
       ElMessage.error('登录尝试过于频繁，请稍后再试')
+    } else if (code === 40001) {
+      ElMessage.error(msg || '用户名或密码不能为空')
+    } else if (msg.includes('Network Error') || msg.includes('ECONNREFUSED') || msg.includes('timeout')) {
+      ElMessage.error('网络错误，请检查网络连接')
     } else {
       // 默认显示后端返回的消息
       ElMessage.error(msg || '登录失败，请稍后重试')

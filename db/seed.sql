@@ -1,10 +1,12 @@
 -- =============================================================
--- EPMS 初始化测试数据（seed）
--- 依据：docs/02-数据模型.md §12、docs/04-决策规则与验证.md §4/§7
+-- EPMS 初始化数据（seed）
+-- 依据：docs/02-数据模型.md、docs/04-决策规则与验证.md
 -- 执行方式：mysql -u root -p
 --          source D:/Graduation_project/db/seed.sql
 -- 注意：本脚本只用于首次初始化，重复执行会因唯一键冲突而失败
 -- 演示账号统一密码：Epms@123456（BCrypt cost=10）
+-- 当前范围（W2）：角色 / 部门 / 用户 / 角色关联 / 系统参数 / 考核周期 / 指标库 / 知识库样例
+--               方案、目标、考评单、审批任务等业务数据待对应模块完成后补充
 -- =============================================================
 
 USE epms;
@@ -26,16 +28,16 @@ INSERT INTO sys_role (id, role_code, role_name, data_scope, status, remark) VALU
 -- 2. 部门树：1 个公司根部门 + 3 个二级部门
 -- -------------------------------------------------------------
 INSERT INTO sys_dept (id, parent_id, ancestors, dept_code, dept_name, sort_no, status) VALUES
-(1, 0, '0',     'COMPANY',   '示例科技有限公司', 1, 1),
-(2, 1, '0,1',   'DEPT_SALES','销售部',           2, 1),
-(3, 1, '0,1',   'DEPT_TECH', '技术部',           3, 1),
-(4, 1, '0,1',   'DEPT_FUNC', '职能部',           4, 1);
+(1, 0, '0',     'COMPANY',    '示例科技有限公司', 1, 1),
+(2, 1, '0,1',   'DEPT_SALES', '销售部',           2, 1),
+(3, 1, '0,1',   'DEPT_TECH',  '技术部',           3, 1),
+(4, 1, '0,1',   'DEPT_FUNC',  '职能部',           4, 1);
 
 -- -------------------------------------------------------------
--- 3. 用户（含 4 个演示账号 + 4 个引擎验证员工）
+-- 3. 用户（5 类角色账号 + 验证员工）
 -- -------------------------------------------------------------
 INSERT INTO sys_user (id, username, password_hash, real_name, employee_no, dept_id, position_title, mobile, email, status) VALUES
-(1,  'admin',      '$2b$10$AgQHmU/x4F11kRdJGP//COx1q3GHXddc7bjrTLg3quRLhe8W1o3EW', '系统管理员', 'A0001', 1, '管理员',     '13800000001', 'admin@epms.demo',      1),
+(1,  'admin',      '$2b$10$AgQHmU/x4F11kRdJGP//COx1q3GHXddc7bjrTLg3quRLhe8W1o3EW', '系统管理员', 'A0001', 1, '管理员',       '13800000001', 'admin@epms.demo',      1),
 (2,  'hr01',       '$2b$10$AgQHmU/x4F11kRdJGP//COx1q3GHXddc7bjrTLg3quRLhe8W1o3EW', '李静',       'H0001', 4, 'HR 专员',      '13800000002', 'hr01@epms.demo',       1),
 (3,  'manager01',  '$2b$10$AgQHmU/x4F11kRdJGP//COx1q3GHXddc7bjrTLg3quRLhe8W1o3EW', '陈刚',       'M0001', 2, '销售部负责人', '13800000003', 'manager01@epms.demo',  1),
 (4,  'employee01', '$2b$10$AgQHmU/x4F11kRdJGP//COx1q3GHXddc7bjrTLg3quRLhe8W1o3EW', '刘洋',       'E0000', 2, '销售专员',     '13800000004', 'employee01@epms.demo', 1),
@@ -89,247 +91,48 @@ INSERT INTO sys_config (config_key, config_value, value_type, group_code, remark
 ('engine.confidence.threshold',    '0.75',  'NUMBER',  'ENGINE', '低于该置信度强制人工确认',          1);
 
 -- -------------------------------------------------------------
--- 6. 考核周期：2026-Q2 / Q3 历史，2026-Q4 当前
+-- 6. 考核周期（3 个：已关闭 / 进行中 / 草稿，覆盖三种状态）
 -- -------------------------------------------------------------
 INSERT INTO perf_cycle (id, cycle_code, cycle_name, cycle_type, start_date, end_date, self_deadline, manager_deadline, hr_deadline, final_deadline, status, published_at, finished_at, remark) VALUES
-(1, '2026-Q2', '2026 年第二季度考核', 'QUARTER', '2026-04-01', '2026-06-30',
+(1, '2025-Q4', '2025 年第四季度考核', 'QUARTER', '2025-10-01', '2025-12-31',
+ '2025-12-20 23:59:59', '2025-12-25 23:59:59', '2025-12-28 23:59:59', '2025-12-31 23:59:59',
+ 'CLOSED', '2025-10-08 09:00:00', '2026-01-05 10:00:00', '历史周期，用于验证已关闭周期禁止新增记录'),
+(2, '2026-Q1', '2026 年第一季度考核', 'QUARTER', '2026-01-01', '2026-03-31',
+ '2026-03-20 23:59:59', '2026-03-25 23:59:59', '2026-03-28 23:59:59', '2026-03-31 23:59:59',
+ 'IN_PROGRESS', '2026-01-05 09:00:00', NULL, '当前进行中的考核周期'),
+(3, '2026-Q2', '2026 年第二季度考核', 'QUARTER', '2026-04-01', '2026-06-30',
  '2026-06-20 23:59:59', '2026-06-25 23:59:59', '2026-06-28 23:59:59', '2026-06-30 23:59:59',
- 'FINISHED', '2026-04-05 09:00:00', '2026-07-01 10:00:00', '历史周期，用于 F6 历史趋势'),
-(2, '2026-Q3', '2026 年第三季度考核', 'QUARTER', '2026-07-01', '2026-09-30',
- '2026-09-20 23:59:59', '2026-09-25 23:59:59', '2026-09-28 23:59:59', '2026-09-30 23:59:59',
- 'FINISHED', '2026-07-05 09:00:00', '2026-10-01 10:00:00', '历史周期，用于 F6 历史趋势'),
-(3, '2026-Q4', '2026 年第四季度考核', 'QUARTER', '2026-10-01', '2026-12-31',
- '2026-11-10 23:59:59', '2026-11-20 23:59:59', '2026-11-25 23:59:59', '2026-11-30 23:59:59',
- 'PUBLISHED', '2026-10-08 09:00:00', NULL, '当前演示周期');
+ 'DRAFT', NULL, NULL, '草稿周期，用于验证发布流程');
 
 -- -------------------------------------------------------------
--- 7. 指标库（8 个 F1 定量 + 1 个 F2 定性 + 1 个 F3 定性）
+-- 7. 指标库（12 个：业绩 5 + 能力 4 + 态度 3，默认权重合计 100.00）
+--    业绩 40 = 18+8+6+5+3；能力 35 = 12+10+8+5；态度 25 = 10+8+7
 -- -------------------------------------------------------------
-INSERT INTO perf_indicator (id, indicator_code, indicator_name, category, unit, default_factor_code, data_source, scoring_desc, status) VALUES
-(1,  'KPI-SALE-01',    '销售额',           'QUANTITATIVE', '万元', 'F1', '销售系统导出', '达成率=实际/目标×100，得分封顶 100', 1),
-(2,  'KPI-COLLECT-02', '回款率',           'QUANTITATIVE', '%',    'F1', '财务系统导出', '达成率=实际/目标×100，得分封顶 100', 1),
-(3,  'KPI-NEWCUST-03', '新客户数',         'QUANTITATIVE', '个',   'F1', 'CRM 导出',     '达成率=实际/目标×100，得分封顶 100', 1),
-(4,  'KPI-GROSS-04',   '毛利率',           'QUANTITATIVE', '%',    'F1', '财务系统导出', '达成率=实际/目标×100，得分封顶 100', 1),
-(5,  'KPI-COST-05',    '费用控制率',       'QUANTITATIVE', '%',    'F1', '财务系统导出', '达成率=实际/目标×100，得分封顶 100', 1),
-(6,  'KPI-DELIVERY-06','交付及时率',       'QUANTITATIVE', '%',    'F1', '项目系统导出', '达成率=实际/目标×100，得分封顶 100', 1),
-(7,  'KPI-SATISFY-07', '客户满意度',       'QUANTITATIVE', '%',    'F1', '满意度调研',   '达成率=实际/目标×100，得分封顶 100', 1),
-(8,  'KPI-PROCESS-08', '流程规范执行率',   'QUANTITATIVE', '%',    'F1', '合规检查记录', '达成率=实际/目标×100，得分封顶 100', 1),
-(9,  'QUA-PROJ-09',    '重点项目完成质量', 'QUALITATIVE',  '分',   'F2', '主管评分',     '按项目完成质量 0-100 打分',          1),
-(10, 'QUA-VALUE-10',   '价值观与行为规范', 'QUALITATIVE',  '分',   'F3', '主管评分',     '按责任心/合规/协作 0-100 打分',      1);
+INSERT INTO perf_indicator (id, indicator_code, indicator_name, biz_category, scoring_type, unit, default_weight, default_factor_code, data_source, scoring_desc, status) VALUES
+-- 业绩类指标（PERFORMANCE，合计 40）
+(1,  'KPI-SALE-01',     '销售额',           'PERFORMANCE', 'QUANTITATIVE', '万元', 18.00, 'F1', '销售系统导出', '达成率=实际/目标×100，得分封顶 100', 1),
+(2,  'KPI-COLLECT-02',  '回款率',           'PERFORMANCE', 'QUANTITATIVE', '%',     8.00, 'F1', '财务系统导出', '达成率=实际/目标×100，得分封顶 100', 1),
+(3,  'KPI-NEWCUST-03',  '新客户开发数',     'PERFORMANCE', 'QUANTITATIVE', '个',    6.00, 'F1', 'CRM 导出',     '达成率=实际/目标×100，得分封顶 100', 1),
+(4,  'KPI-GROSS-04',    '毛利率',           'PERFORMANCE', 'QUANTITATIVE', '%',     5.00, 'F1', '财务系统导出', '达成率=实际/目标×100，得分封顶 100', 1),
+(5,  'KPI-DELIVERY-05', '项目交付及时率',   'PERFORMANCE', 'QUANTITATIVE', '%',     3.00, 'F1', '项目系统导出', '达成率=实际/目标×100，得分封顶 100', 1),
+-- 能力类指标（ABILITY，合计 35）
+(6,  'ABI-SKILL-06',    '专业技能提升',     'ABILITY',     'QUALITATIVE',  '分',   12.00, 'F2', '主管评分',     '按技能掌握程度 0-100 打分',         1),
+(7,  'ABI-PROJ-07',     '重点项目完成质量', 'ABILITY',     'QUALITATIVE',  '分',   10.00, 'F2', '主管评分',     '按项目质量与难度 0-100 打分',       1),
+(8,  'ABI-INNOV-08',    '创新与改进贡献',   'ABILITY',     'QUALITATIVE',  '分',    8.00, 'F2', '主管评分',     '按创新价值 0-100 打分',             1),
+(9,  'ABI-TRAIN-09',    '培训与知识分享',   'ABILITY',     'QUALITATIVE',  '分',    5.00, 'F2', '培训记录',     '按参与次数与质量 0-100 打分',       1),
+-- 态度类指标（ATTITUDE，合计 25）
+(10, 'ATT-DISC-10',     '工作态度与责任心', 'ATTITUDE',    'QUALITATIVE',  '分',   10.00, 'F3', '主管评分',     '按责任心与积极性 0-100 打分',       1),
+(11, 'ATT-COLL-11',     '团队协作与沟通',   'ATTITUDE',    'QUALITATIVE',  '分',    8.00, 'F3', '主管评分',     '按协作与沟通效果 0-100 打分',       1),
+(12, 'ATT-COMP-12',     '合规与制度遵守',   'ATTITUDE',    'QUALITATIVE',  '分',    7.00, 'F3', '合规检查',     '按违规次数扣分，0-100 打分',        1);
 
 -- -------------------------------------------------------------
--- 8. 指标方案（2026-Q4 全员方案，规则版本 1）
--- 注意：指标项只覆盖 F1/F2/F3，权重合计 75；F4/F5/F6 取 aux_data，无指标项。
---       docs/02 写的 total_weight=100 与 04 §6.1 的“三项合计 75”存在冲突，此处按 75 落数。
+-- 8. 指标方案 / 目标 / 考评单 / 审批任务
+--    暂不内置：待指标方案与考评模块开发完成后随模块补充种子数据，
+--    避免出现引用不存在周期或方案的孤立数据。
 -- -------------------------------------------------------------
-INSERT INTO perf_scheme (id, scheme_code, scheme_name, cycle_id, scope_type, scope_value, rule_version, total_weight, status, published_at, remark) VALUES
-(1, 'SCH-2026Q4-ALL', '2026Q4 全员绩效方案', 3, 'ALL', '*', 1, 75.00, 'PUBLISHED', '2026-10-08 09:00:00', '指标项覆盖 F1-F3，F4-F6 走 aux_data');
-
-INSERT INTO perf_scheme_item (id, scheme_id, indicator_id, factor_code, weight, target_required, scoring_rule, sort_no) VALUES
-(1,  1, 1,  'F1', 18.00, 1, '{"rateCap":120,"scoreCap":100,"direction":"POSITIVE"}', 1),
-(2,  1, 2,  'F1', 6.00,  1, '{"rateCap":120,"scoreCap":100,"direction":"POSITIVE"}', 2),
-(3,  1, 3,  'F1', 5.00,  1, '{"rateCap":120,"scoreCap":100,"direction":"POSITIVE"}', 3),
-(4,  1, 4,  'F1', 5.00,  1, '{"rateCap":120,"scoreCap":100,"direction":"POSITIVE"}', 4),
-(5,  1, 5,  'F1', 2.00,  1, '{"rateCap":120,"scoreCap":100,"direction":"POSITIVE"}', 5),
-(6,  1, 6,  'F1', 2.00,  1, '{"rateCap":120,"scoreCap":100,"direction":"POSITIVE"}', 6),
-(7,  1, 7,  'F1', 1.00,  1, '{"rateCap":120,"scoreCap":100,"direction":"POSITIVE"}', 7),
-(8,  1, 8,  'F1', 1.00,  1, '{"rateCap":120,"scoreCap":100,"direction":"POSITIVE"}', 8),
-(9,  1, 9,  'F2', 20.00, 0, '{"scoreCap":100}', 9),
-(10, 1, 10, 'F3', 15.00, 0, '{"scoreCap":100}', 10);
 
 -- -------------------------------------------------------------
--- 9. 六因子权重（合计 100）
--- -------------------------------------------------------------
-INSERT INTO perf_factor_config (scheme_id, factor_code, factor_name, weight, enabled, calc_params, sort_no) VALUES
-(1, 'F1', '量化指标达成率',       40.00, 1, NULL, 1),
-(1, 'F2', '重点工作完成质量',     20.00, 1, NULL, 2),
-(1, 'F3', '价值观与行为规范',     15.00, 1, NULL, 3),
-(1, 'F4', '出勤与合规',           10.00, 1, '{"deductPerEvent":10}', 4),
-(1, 'F5', '能力成长',              5.00, 1, '{"requiredHours":24}', 5),
-(1, 'F6', '协作评价与历史绩效趋势', 10.00, 1, NULL, 6);
-
--- -------------------------------------------------------------
--- 10. 五条硬约束
--- -------------------------------------------------------------
-INSERT INTO perf_hard_constraint (scheme_id, constraint_code, constraint_name, threshold_value, threshold_unit, action_type, ceiling_grade, enabled, remark) VALUES
-(1, 'HC_DISCIPLINE_VETO', '重大违纪一票否决',  0.00,  'PERCENT', 'BOTH',         'C',      1, 'disciplineLevel 为 DEMERIT/MAJOR 时触发，无实际阈值'),
-(1, 'HC_ATTENDANCE',      '出勤不达标封顶',    80.00, 'PERCENT', 'CEILING_GRADE','B',      1, 'attendanceRate < 80.00 触发，等号不触发'),
-(1, 'HC_KPI_LOW',         '关键量化指标严重未达', 60.00,'PERCENT', 'CEILING_GRADE','B_PLUS', 1, '存在 weight>=15 的 F1 指标 rate < 60.00 触发'),
-(1, 'HC_DATA_MISSING',    '数据缺失超限',      20.00, 'PERCENT', 'FORCE_MANUAL', NULL,     1, '必填数据点缺失率 > 20.00% 触发'),
-(1, 'HC_SCORE_GAP',       '自评主管评价差距过大', 25.00,'SCORE',  'FORCE_MANUAL', NULL,     1, '|self_total-manager_total| > 25.00 触发');
-
--- -------------------------------------------------------------
--- 11. 六档等级
--- -------------------------------------------------------------
-INSERT INTO perf_grade_band (scheme_id, grade_code, grade_name, min_score, max_score, sort_no) VALUES
-(1, 'S',      '卓越',   95.00, 999.00, 1),
-(1, 'A',      '优秀',   90.00, 95.00,  2),
-(1, 'B_PLUS', '良好+',  80.00, 90.00,  3),
-(1, 'B',      '良好',   70.00, 80.00,  4),
-(1, 'C',      '待改进', 60.00, 70.00,  5),
-(1, 'D',      '不合格',  0.00, 60.00,  6);
-
--- -------------------------------------------------------------
--- 12. 审批节点配置
--- -------------------------------------------------------------
-INSERT INTO appr_node_config (biz_type, scope_type, scope_id, node_code, node_name, node_seq, assignee_type, assignee_value, sign_type, allow_return, return_to_node, due_hours, remind_times, enabled) VALUES
-('PERF_RECORD', 'GLOBAL', 0, 'N1_DEPT', '部门评审', 10, 'DEPT_LEADER',   '*',              'ANY', 1, NULL,      48, 3, 1),
-('PERF_RECORD', 'GLOBAL', 0, 'N2_HR',   'HR 复核',  20, 'ROLE',          'HR_SPECIALIST', 'ANY', 1, 'N1_DEPT', 24, 3, 1),
-('PERF_RECORD', 'GLOBAL', 0, 'N3_FINAL','终审',     30, 'ROLE',          'EXECUTIVE',     'ANY', 1, 'N2_HR',  24, 3, 1),
-('APPEAL',      'GLOBAL', 0, 'APPEAL_REVIEW', '申诉复核', 10, 'ROLE',    'EXECUTIVE',     'ANY', 1, 'N1_DEPT', 48, 3, 1);
-
--- -------------------------------------------------------------
--- 13. 四名验证员工的目标（一员工一周期一份）
--- -------------------------------------------------------------
-INSERT INTO perf_target (id, cycle_id, employee_id, dept_id, scheme_id, status, distributed_at, confirmed_at, dispute_reason) VALUES
-(1, 3, 5, 2, 1, 'CONFIRMED', '2026-10-09 09:00:00', '2026-10-12 09:00:00', NULL),
-(2, 3, 6, 2, 1, 'CONFIRMED', '2026-10-09 09:00:00', '2026-10-12 09:00:00', NULL),
-(3, 3, 7, 3, 1, 'CONFIRMED', '2026-10-09 09:00:00', '2026-10-12 09:00:00', NULL),
-(4, 3, 8, 4, 1, 'CONFIRMED', '2026-10-09 09:00:00', '2026-10-12 09:00:00', NULL);
-
--- 目标明细：4 人 × 10 项
-INSERT INTO perf_target_item (id, target_id, scheme_item_id, indicator_id, factor_code, target_value, challenge_value, weight_snapshot) VALUES
-(1,  1, 1,  1,  'F1', 200.00, 240.00, 18.00),
-(2,  1, 2,  2,  'F1', 95.00,  100.00, 6.00),
-(3,  1, 3,  3,  'F1', 12.00,  15.00,  5.00),
-(4,  1, 4,  4,  'F1', 30.00,  36.00,  5.00),
-(5,  1, 5,  5,  'F1', 90.00,  95.00,  2.00),
-(6,  1, 6,  6,  'F1', 98.00,  100.00, 2.00),
-(7,  1, 7,  7,  'F1', 100.00, 105.00, 1.00),
-(8,  1, 8,  8,  'F1', 100.00, 105.00, 1.00),
-(9,  1, 9,  9,  'F2', NULL,    NULL,    20.00),
-(10, 1, 10, 10, 'F3', NULL,    NULL,    15.00),
-
-(11, 2, 1,  1,  'F1', 200.00, 240.00, 18.00),
-(12, 2, 2,  2,  'F1', 95.00,  100.00, 6.00),
-(13, 2, 3,  3,  'F1', 12.00,  15.00,  5.00),
-(14, 2, 4,  4,  'F1', 30.00,  36.00,  5.00),
-(15, 2, 5,  5,  'F1', 90.00,  95.00,  2.00),
-(16, 2, 6,  6,  'F1', 98.00,  100.00, 2.00),
-(17, 2, 7,  7,  'F1', 100.00, 105.00, 1.00),
-(18, 2, 8,  8,  'F1', 100.00, 105.00, 1.00),
-(19, 2, 9,  9,  'F2', NULL,    NULL,    20.00),
-(20, 2, 10, 10, 'F3', NULL,    NULL,    15.00),
-
-(21, 3, 1,  1,  'F1', 200.00, 240.00, 18.00),
-(22, 3, 2,  2,  'F1', 95.00,  100.00, 6.00),
-(23, 3, 3,  3,  'F1', 12.00,  15.00,  5.00),
-(24, 3, 4,  4,  'F1', 30.00,  36.00,  5.00),
-(25, 3, 5,  5,  'F1', 90.00,  95.00,  2.00),
-(26, 3, 6,  6,  'F1', 98.00,  100.00, 2.00),
-(27, 3, 7,  7,  'F1', 100.00, 105.00, 1.00),
-(28, 3, 8,  8,  'F1', 100.00, 105.00, 1.00),
-(29, 3, 9,  9,  'F2', NULL,    NULL,    20.00),
-(30, 3, 10, 10, 'F3', NULL,    NULL,    15.00),
-
-(31, 4, 1,  1,  'F1', 200.00, 240.00, 18.00),
-(32, 4, 2,  2,  'F1', 95.00,  100.00, 6.00),
-(33, 4, 3,  3,  'F1', 12.00,  15.00,  5.00),
-(34, 4, 4,  4,  'F1', 30.00,  36.00,  5.00),
-(35, 4, 5,  5,  'F1', 90.00,  95.00,  2.00),
-(36, 4, 6,  6,  'F1', 98.00,  100.00, 2.00),
-(37, 4, 7,  7,  'F1', 100.00, 105.00, 1.00),
-(38, 4, 8,  8,  'F1', 100.00, 105.00, 1.00),
-(39, 4, 9,  9,  'F2', NULL,    NULL,    20.00),
-(40, 4, 10, 10, 'F3', NULL,    NULL,    15.00);
-
--- -------------------------------------------------------------
--- 14. 历史已办结考评单（供 F6 历史趋势取数）
--- A=E1001 77/79，B=E1002 78/78，C=E1003 63/65，D=E1004 仅 73
--- -------------------------------------------------------------
-INSERT INTO perf_record (id, record_no, cycle_id, employee_id, dept_id, scheme_id, target_id, status, self_total, manager_total, final_total, final_grade, submitted_at, dept_passed_at, hr_passed_at, finalized_at, closed_at, aux_data) VALUES
-(1001, 'RC202606300001', 1, 5, 2, 1, 1, 'CLOSED', 80.00, 78.00, 77.00, 'B', '2026-06-18 10:00:00', '2026-06-22 10:00:00', '2026-06-26 10:00:00', '2026-06-29 10:00:00', '2026-06-30 10:00:00', NULL),
-(1002, 'RC202609300002', 2, 5, 2, 1, 1, 'CLOSED', 82.00, 80.00, 79.00, 'B', '2026-09-18 10:00:00', '2026-09-22 10:00:00', '2026-09-26 10:00:00', '2026-09-29 10:00:00', '2026-09-30 10:00:00', NULL),
-(1011, 'RC202606300011', 1, 6, 2, 1, 2, 'CLOSED', 79.00, 79.00, 78.00, 'B', '2026-06-18 10:00:00', '2026-06-22 10:00:00', '2026-06-26 10:00:00', '2026-06-29 10:00:00', '2026-06-30 10:00:00', NULL),
-(1012, 'RC202609300012', 2, 6, 2, 1, 2, 'CLOSED', 79.00, 79.00, 78.00, 'B', '2026-09-18 10:00:00', '2026-09-22 10:00:00', '2026-09-26 10:00:00', '2026-09-29 10:00:00', '2026-09-30 10:00:00', NULL),
-(1021, 'RC202606300021', 1, 7, 3, 1, 3, 'CLOSED', 70.00, 62.00, 63.00, 'C', '2026-06-18 10:00:00', '2026-06-22 10:00:00', '2026-06-26 10:00:00', '2026-06-29 10:00:00', '2026-06-30 10:00:00', NULL),
-(1022, 'RC202609300022', 2, 7, 3, 1, 3, 'CLOSED', 71.00, 64.00, 65.00, 'C', '2026-09-18 10:00:00', '2026-09-22 10:00:00', '2026-09-26 10:00:00', '2026-09-29 10:00:00', '2026-09-30 10:00:00', NULL),
-(1031, 'RC202609300031', 2, 8, 4, 1, 4, 'CLOSED', 75.00, 71.00, 73.00, 'B', '2026-09-18 10:00:00', '2026-09-22 10:00:00', '2026-09-26 10:00:00', '2026-09-29 10:00:00', '2026-09-30 10:00:00', NULL);
-
--- -------------------------------------------------------------
--- 15. 四张当前考评单（DEPT_PASSED，待 HR 复核 / AFTER_DEPT 口径）
--- -------------------------------------------------------------
-INSERT INTO perf_record (id, record_no, cycle_id, employee_id, dept_id, scheme_id, target_id, status, current_node_code, self_total, manager_total, submitted_at, dept_passed_at, deadline_at, aux_data, remark) VALUES
-(2001, 'RC202611020001', 3, 5, 2, 1, 1, 'DEPT_PASSED', 'N2_HR', 94.00, 88.00, '2026-10-28 10:00:00', '2026-11-01 10:00:00', '2026-11-20 23:59:59',
- '{"attendanceRate":92.00,"disciplineEvents":0,"disciplineLevel":"NONE","trainingHours":20,"requiredTrainingHours":24,"abilityTestAvg":85.00,"peerScore":80.00,"lastCycleCodes":["2026-Q2","2026-Q3"]}',
- '案例A 正常：期望 B_PLUS，无需人工'),
-(2002, 'RC202611020002', 3, 6, 2, 1, 2, 'DEPT_PASSED', 'N2_HR', 80.00, 80.00, '2026-10-28 10:00:00', '2026-11-01 10:00:00', '2026-11-20 23:59:59',
- '{"attendanceRate":80.00,"disciplineEvents":0,"disciplineLevel":"NONE","trainingHours":20,"requiredTrainingHours":24,"abilityTestAvg":65.00,"peerScore":78.00,"lastCycleCodes":["2026-Q2","2026-Q3"]}',
- '案例B 临界：期望 79.94→B，边界等号不触发'),
-(2003, 'RC202611020003', 3, 7, 3, 1, 3, 'DEPT_PASSED', 'N2_HR', 91.00, 64.00, '2026-10-28 10:00:00', '2026-11-01 10:00:00', '2026-11-20 23:59:59',
- '{"attendanceRate":76.00,"disciplineEvents":1,"disciplineLevel":"DEMERIT","trainingHours":20,"requiredTrainingHours":24,"abilityTestAvg":55.00,"peerScore":78.00,"lastCycleCodes":["2026-Q2","2026-Q3"]}',
- '案例C 冲突：期望 C，四条约束命中，强制人工'),
-(2004, 'RC202611020004', 3, 8, 4, 1, 4, 'DEPT_PASSED', 'N2_HR', 78.00, 74.00, '2026-10-28 10:00:00', '2026-11-01 10:00:00', '2026-11-20 23:59:59',
- '{"attendanceRate":88.00,"disciplineEvents":0,"disciplineLevel":"NONE","requiredTrainingHours":24,"peerScore":74.00,"lastCycleCodes":["2026-Q3"]}',
- '案例D 缺失：期望 MANUAL_REQUIRED，F1 缺失 3 项');
-
--- -------------------------------------------------------------
--- 16. 当前考评单指标明细（4 人 × 10 项）
--- -------------------------------------------------------------
-INSERT INTO perf_record_item (id, record_id, scheme_item_id, indicator_id, factor_code, weight_snapshot, target_value_snapshot, actual_value, achievement_rate, self_score, manager_score, hr_score, final_score, self_comment, manager_comment, data_source) VALUES
--- E1001 案例A：F1=90.00
-(1,  2001, 1,  1,  'F1', 18.00, 200.00, 176.88, 88.44,  88.44,  88.44,  NULL, NULL, NULL, NULL, 'SEED'),
-(2,  2001, 2,  2,  'F1', 6.00,  95.00,  64.60,  68.00,  68.00,  68.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(3,  2001, 3,  3,  'F1', 5.00,  12.00,  13.20,  110.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(4,  2001, 4,  4,  'F1', 5.00,  30.00,  33.00,  110.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(5,  2001, 5,  5,  'F1', 2.00,  90.00,  108.00, 120.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(6,  2001, 6,  6,  'F1', 2.00,  98.00,  107.80, 110.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(7,  2001, 7,  7,  'F1', 1.00,  100.00, 112.00, 112.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(8,  2001, 8,  8,  'F1', 1.00,  100.00, 105.00, 105.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(9,  2001, 9,  9,  'F2', 20.00, NULL,   NULL,   NULL,   85.00,  85.00,  NULL, NULL, NULL, '重点项目按期高质量完成', 'SEED'),
-(10, 2001, 10, 10, 'F3', 15.00, NULL,   NULL,   NULL,   88.00,  88.00,  NULL, NULL, NULL, '责任心与协作表现良好',   'SEED'),
-
--- E1002 案例B：F1=81.85
-(11, 2002, 1,  1,  'F1', 18.00, 200.00, 120.00, 60.00,  60.00,  60.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(12, 2002, 2,  2,  'F1', 6.00,  95.00,  94.05,  99.00,  99.00,  99.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(13, 2002, 3,  3,  'F1', 5.00,  12.00,  12.00,  100.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(14, 2002, 4,  4,  'F1', 5.00,  30.00,  30.00,  100.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(15, 2002, 5,  5,  'F1', 2.00,  90.00,  90.00,  100.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(16, 2002, 6,  6,  'F1', 2.00,  98.00,  98.00,  100.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(17, 2002, 7,  7,  'F1', 1.00,  100.00, 100.00, 100.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(18, 2002, 8,  8,  'F1', 1.00,  100.00, 100.00, 100.00, 100.00, 100.00, NULL, NULL, NULL, NULL, 'SEED'),
-(19, 2002, 9,  9,  'F2', 20.00, NULL,   NULL,   NULL,   78.00,  78.00,  NULL, NULL, NULL, '项目完成质量达标', 'SEED'),
-(20, 2002, 10, 10, 'F3', 15.00, NULL,   NULL,   NULL,   80.00,  80.00,  NULL, NULL, NULL, '行为规范符合要求', 'SEED'),
-
--- E1003 案例C：F1=58.00
-(21, 2003, 1,  1,  'F1', 18.00, 200.00, 110.00, 55.00,  55.00,  55.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(22, 2003, 2,  2,  'F1', 6.00,  95.00,  57.00,  60.00,  60.00,  60.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(23, 2003, 3,  3,  'F1', 5.00,  12.00,  7.20,   60.00,  60.00,  60.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(24, 2003, 4,  4,  'F1', 5.00,  30.00,  18.00,  60.00,  60.00,  60.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(25, 2003, 5,  5,  'F1', 2.00,  90.00,  54.00,  60.00,  60.00,  60.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(26, 2003, 6,  6,  'F1', 2.00,  98.00,  58.80,  60.00,  60.00,  60.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(27, 2003, 7,  7,  'F1', 1.00,  100.00, 65.00,  65.00,  65.00,  65.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(28, 2003, 8,  8,  'F1', 1.00,  100.00, 65.00,  65.00,  65.00,  65.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(29, 2003, 9,  9,  'F2', 20.00, NULL,   NULL,   NULL,   66.00,  66.00,  NULL, NULL, NULL, '项目延期，质量一般', 'SEED'),
-(30, 2003, 10, 10, 'F3', 15.00, NULL,   NULL,   NULL,   70.00,  70.00,  NULL, NULL, NULL, '存在一次记过处分',   'SEED'),
-
--- E1004 案例D：F1=72.00（3 项缺失，权重 6+5+5）
-(31, 2004, 1,  1,  'F1', 18.00, 200.00, 144.00, 72.00,  72.00,  72.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(32, 2004, 2,  2,  'F1', 6.00,  95.00,  NULL,   NULL,    NULL,   NULL,   NULL, NULL, '数据未提供', '数据未提供', 'SEED'),
-(33, 2004, 3,  3,  'F1', 5.00,  12.00,  NULL,   NULL,    NULL,   NULL,   NULL, NULL, '数据未提供', '数据未提供', 'SEED'),
-(34, 2004, 4,  4,  'F1', 5.00,  30.00,  NULL,   NULL,    NULL,   NULL,   NULL, NULL, '数据未提供', '数据未提供', 'SEED'),
-(35, 2004, 5,  5,  'F1', 2.00,  90.00,  64.80,  72.00,  72.00,  72.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(36, 2004, 6,  6,  'F1', 2.00,  98.00,  70.56,  72.00,  72.00,  72.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(37, 2004, 7,  7,  'F1', 1.00,  100.00, 72.00,  72.00,  72.00,  72.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(38, 2004, 8,  8,  'F1', 1.00,  100.00, 72.00,  72.00,  72.00,  72.00,  NULL, NULL, NULL, NULL, 'SEED'),
-(39, 2004, 9,  9,  'F2', 20.00, NULL,   NULL,   NULL,   80.00,  80.00,  NULL, NULL, NULL, '项目完成质量良好', 'SEED'),
-(40, 2004, 10, 10, 'F3', 15.00, NULL,   NULL,   NULL,   82.00,  82.00,  NULL, NULL, NULL, '行为规范表现良好', 'SEED');
-
--- -------------------------------------------------------------
--- 17. 审批任务（每单：部门已过 + HR 待办）
--- -------------------------------------------------------------
-INSERT INTO appr_task (id, biz_type, biz_id, node_code, node_seq, assignee_id, assignee_role, sign_type, status, action_comment, handled_at, remind_count, next_remind_at, created_at) VALUES
-(1, 'PERF_RECORD', 2001, 'N1_DEPT', 10, 3, 'DEPT_MANAGER',  'ANY', 'APPROVED', '部门评审通过', '2026-11-01 10:00:00', 0, NULL, '2026-10-28 10:00:00'),
-(2, 'PERF_RECORD', 2001, 'N2_HR',   20, 2, 'HR_SPECIALIST', 'ANY', 'PENDING',  NULL,           NULL,                  0, '2026-11-03 09:00:00', '2026-11-01 10:00:00'),
-(3, 'PERF_RECORD', 2002, 'N1_DEPT', 10, 3, 'DEPT_MANAGER',  'ANY', 'APPROVED', '部门评审通过', '2026-11-01 10:00:00', 0, NULL, '2026-10-28 10:00:00'),
-(4, 'PERF_RECORD', 2002, 'N2_HR',   20, 2, 'HR_SPECIALIST', 'ANY', 'PENDING',  NULL,           NULL,                  0, '2026-11-03 09:00:00', '2026-11-01 10:00:00'),
-(5, 'PERF_RECORD', 2003, 'N1_DEPT', 10, 9, 'DEPT_MANAGER',  'ANY', 'APPROVED', '部门评审通过', '2026-11-01 10:00:00', 0, NULL, '2026-10-28 10:00:00'),
-(6, 'PERF_RECORD', 2003, 'N2_HR',   20, 2, 'HR_SPECIALIST', 'ANY', 'PENDING',  NULL,           NULL,                  0, '2026-11-03 09:00:00', '2026-11-01 10:00:00'),
-(7, 'PERF_RECORD', 2004, 'N1_DEPT', 10, 10,'DEPT_MANAGER',  'ANY', 'APPROVED', '部门评审通过', '2026-11-01 10:00:00', 0, NULL, '2026-10-28 10:00:00'),
-(8, 'PERF_RECORD', 2004, 'N2_HR',   20, 2, 'HR_SPECIALIST', 'ANY', 'PENDING',  NULL,           NULL,                  0, '2026-11-03 09:00:00', '2026-11-01 10:00:00');
-
--- -------------------------------------------------------------
--- 18. 知识库演示文档 + 3 个切块（embedding 置 SKIPPED，配 Key 后可重建）
+-- 9. 知识库演示文档 + 3 个切块（embedding 置 SKIPPED，配 Key 后可重建）
 -- -------------------------------------------------------------
 INSERT INTO ai_kb_document (id, doc_title, doc_category, file_path, file_hash, version_no, chunk_size, overlap, chunk_count, tags, status, enabled, remark, create_by) VALUES
 (1, '绩效考核管理制度（演示样例）', 'PERFORMANCE', 'kb/demo-performance-policy.txt',
@@ -351,3 +154,570 @@ INSERT INTO ai_kb_chunk (id, doc_id, chunk_index, content, char_count, section_p
  NULL, NULL, NULL, 'SKIPPED');
 
 COMMIT;
+
+-- =============================================================
+-- 以下为业务演示数据（指标方案 / 目标 / 考评单 / 审批任务 / 决策规则）
+-- 支撑 docs/04 的 A/B/C/D 四个验证案例；原 db/seed_business.sql 已并入本文件
+-- =============================================================
+
+START TRANSACTION;
+
+-- 0. 历史周期补充：2025-Q3（CLOSED）
+-- -------------------------------------------------------------
+-- 用途：docs/04 §2.6 的历史趋势取"最近两期 status=CLOSED 的 final_total"，
+--       seed.sql 只有 2025-Q4 一个 CLOSED 周期，每员工一周期只能一张单，
+--       因此补一个更早的已关闭周期，形成 2025-Q3 + 2025-Q4 的"近两期"。
+INSERT INTO perf_cycle (id, cycle_code, cycle_name, cycle_type, start_date, end_date, self_deadline, manager_deadline, hr_deadline, final_deadline, status, published_at, finished_at, remark, create_by) VALUES
+(4, '2025-Q3', '2025 年第三季度考核', 'QUARTER', '2025-07-01', '2025-09-30',
+ '2025-09-20 23:59:59', '2025-09-25 23:59:59', '2025-09-28 23:59:59', '2025-09-30 23:59:59',
+ 'CLOSED', '2025-07-08 09:00:00', '2025-10-10 10:00:00', '历史周期（补）：仅用于验证案例"最近两期"历史趋势取数', 2);
+
+-- -------------------------------------------------------------
+-- 1. 指标方案 perf_scheme
+-- -------------------------------------------------------------
+-- 方案 1：演示主线，绑定周期 2（2026-Q1），明细引用 perf_indicator 1-12，权重合计 100.00；
+-- 方案 2/3：历史周期方案，仅供 2025-Q3 / 2025-Q4 已关闭考评单回溯（规则配置不再重复造）。
+INSERT INTO perf_scheme (id, scheme_code, scheme_name, cycle_id, scope_type, scope_value, rule_version, total_weight, status, published_at, remark, create_by) VALUES
+(1, 'SCH-2026Q1-ALL', '2026Q1 全员绩效方案', 2, 'ALL', '*', 1, 100.00, 'PUBLISHED', '2026-01-05 09:30:00', '演示主线方案：业绩 40 / 能力 35 / 态度 25', 2),
+(2, 'SCH-2025Q3-ALL', '2025Q3 全员绩效方案', 4, 'ALL', '*', 1, 100.00, 'PUBLISHED', '2025-07-08 09:30:00', '历史方案：仅供历史考评单回溯', 2),
+(3, 'SCH-2025Q4-ALL', '2025Q4 全员绩效方案', 1, 'ALL', '*', 1, 100.00, 'PUBLISHED', '2025-10-08 09:30:00', '历史方案：仅供历史考评单回溯', 2);
+
+-- -------------------------------------------------------------
+-- 1.1 方案指标项 perf_scheme_item
+-- -------------------------------------------------------------
+-- scheme_item_id 1-12 = 方案 1；13-24 = 方案 2；25-36 = 方案 3（与指标 id 一一对应）
+-- 定量项 scoring_rule 带 rateCap=120 / scoreCap=100；定性项只声明 direction
+INSERT INTO perf_scheme_item (id, scheme_id, indicator_id, factor_code, weight, target_required, scoring_rule, sort_no, create_by) VALUES
+(1, 1, 1, 'F1', 18.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 1, 2),
+(2, 1, 2, 'F1', 8.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 2, 2),
+(3, 1, 3, 'F1', 6.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 3, 2),
+(4, 1, 4, 'F1', 5.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 4, 2),
+(5, 1, 5, 'F1', 3.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 5, 2),
+(6, 1, 6, 'F2', 12.00, 0, '{"direction": "POSITIVE"}', 6, 2),
+(7, 1, 7, 'F2', 10.00, 0, '{"direction": "POSITIVE"}', 7, 2),
+(8, 1, 8, 'F2', 8.00, 0, '{"direction": "POSITIVE"}', 8, 2),
+(9, 1, 9, 'F2', 5.00, 0, '{"direction": "POSITIVE"}', 9, 2),
+(10, 1, 10, 'F3', 10.00, 0, '{"direction": "POSITIVE"}', 10, 2),
+(11, 1, 11, 'F3', 8.00, 0, '{"direction": "POSITIVE"}', 11, 2),
+(12, 1, 12, 'F3', 7.00, 0, '{"direction": "POSITIVE"}', 12, 2),
+(13, 2, 1, 'F1', 18.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 1, 2),
+(14, 2, 2, 'F1', 8.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 2, 2),
+(15, 2, 3, 'F1', 6.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 3, 2),
+(16, 2, 4, 'F1', 5.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 4, 2),
+(17, 2, 5, 'F1', 3.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 5, 2),
+(18, 2, 6, 'F2', 12.00, 0, '{"direction": "POSITIVE"}', 6, 2),
+(19, 2, 7, 'F2', 10.00, 0, '{"direction": "POSITIVE"}', 7, 2),
+(20, 2, 8, 'F2', 8.00, 0, '{"direction": "POSITIVE"}', 8, 2),
+(21, 2, 9, 'F2', 5.00, 0, '{"direction": "POSITIVE"}', 9, 2),
+(22, 2, 10, 'F3', 10.00, 0, '{"direction": "POSITIVE"}', 10, 2),
+(23, 2, 11, 'F3', 8.00, 0, '{"direction": "POSITIVE"}', 11, 2),
+(24, 2, 12, 'F3', 7.00, 0, '{"direction": "POSITIVE"}', 12, 2),
+(25, 3, 1, 'F1', 18.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 1, 2),
+(26, 3, 2, 'F1', 8.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 2, 2),
+(27, 3, 3, 'F1', 6.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 3, 2),
+(28, 3, 4, 'F1', 5.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 4, 2),
+(29, 3, 5, 'F1', 3.00, 1, '{"rateCap": 120, "scoreCap": 100, "direction": "POSITIVE"}', 5, 2),
+(30, 3, 6, 'F2', 12.00, 0, '{"direction": "POSITIVE"}', 6, 2),
+(31, 3, 7, 'F2', 10.00, 0, '{"direction": "POSITIVE"}', 7, 2),
+(32, 3, 8, 'F2', 8.00, 0, '{"direction": "POSITIVE"}', 8, 2),
+(33, 3, 9, 'F2', 5.00, 0, '{"direction": "POSITIVE"}', 9, 2),
+(34, 3, 10, 'F3', 10.00, 0, '{"direction": "POSITIVE"}', 10, 2),
+(35, 3, 11, 'F3', 8.00, 0, '{"direction": "POSITIVE"}', 11, 2),
+(36, 3, 12, 'F3', 7.00, 0, '{"direction": "POSITIVE"}', 12, 2);
+
+-- -------------------------------------------------------------
+-- 2. 决策规则配置（仅方案 1：perf_factor_config / perf_hard_constraint / perf_grade_band）
+-- -------------------------------------------------------------
+-- 因子权重：docs/04 §2 默认 40/20/15/10/5/10，启用项合计 100.00
+INSERT INTO perf_factor_config (id, scheme_id, factor_code, factor_name, weight, enabled, calc_params, sort_no) VALUES
+(1, 1, 'F1', '量化指标达成率', 40.00, 1, '{"rateCap": 120, "scoreCap": 100}', 1),
+(2, 1, 'F2', '重点工作完成质量', 20.00, 1, NULL, 2),
+(3, 1, 'F3', '价值观与行为规范', 15.00, 1, NULL, 3),
+(4, 1, 'F4', '出勤与合规', 10.00, 1, '{"deductPerEvent": 10}', 4),
+(5, 1, 'F5', '能力成长', 5.00, 1, '{"requiredHours": 24}', 5),
+(6, 1, 'F6', '协作评价与历史绩效趋势', 10.00, 1, NULL, 6);
+
+-- 硬约束：docs/04 §3 五条；临界值不触发（严格不等号），阈值/封顶档照文档口径
+INSERT INTO perf_hard_constraint (id, scheme_id, constraint_code, constraint_name, threshold_value, threshold_unit, action_type, ceiling_grade, enabled, remark) VALUES
+(1, 1, 'HC_DISCIPLINE_VETO', '重大违纪一票否决', 0.00, 'PERCENT', 'BOTH', 'C', 1, '等级触发（DEMERIT/MAJOR），无阈值，0.00 仅占位；封顶 C 且强制人工'),
+(2, 1, 'HC_ATTENDANCE', '出勤不达标封顶', 80.00, 'PERCENT', 'CEILING_GRADE', 'B', 1, 'attendanceRate < 80.00 触发；恰 80.00 不触发'),
+(3, 1, 'HC_KPI_LOW', '关键量化指标严重未达', 60.00, 'PERCENT', 'CEILING_GRADE', 'B_PLUS', 1, '存在 weight>=15 的 F1 指标 rate < 60.00 触发；恰 60.00 不触发'),
+(4, 1, 'HC_DATA_MISSING', '数据缺失超限', 20.00, 'PERCENT', 'FORCE_MANUAL', NULL, 1, '必填数据点缺失率 > 20% 触发；F1 缺失率 > 20% 时不给建议等级'),
+(5, 1, 'HC_SCORE_GAP', '自评主管评价差距过大', 25.00, 'SCORE', 'FORCE_MANUAL', NULL, 1, 'AFTER_DEPT 起 |self - manager| > 25.00 触发；恰 25.00 不触发');
+
+-- 等级分档：docs/04 §4.1 六档（左闭右开，S 档上限用 999.00）
+INSERT INTO perf_grade_band (id, scheme_id, grade_code, grade_name, min_score, max_score, sort_no) VALUES
+(1, 1, 'S', '卓越', 95.00, 999.00, 1),
+(2, 1, 'A', '优秀', 90.00, 95.00, 2),
+(3, 1, 'B_PLUS', '良好+', 80.00, 90.00, 3),
+(4, 1, 'B', '良好', 70.00, 80.00, 4),
+(5, 1, 'C', '待改进', 60.00, 70.00, 5),
+(6, 1, 'D', '不合格', 0.00, 60.00, 6);
+
+-- -------------------------------------------------------------
+-- 3. 审批节点配置 appr_node_config（GLOBAL，供状态机生成审批任务）
+-- -------------------------------------------------------------
+INSERT INTO appr_node_config (id, biz_type, scope_type, scope_id, node_code, node_name, node_seq, assignee_type, assignee_value, sign_type, allow_return, return_to_node, due_hours, remind_times, enabled, create_by) VALUES
+(1, 'PERF_RECORD', 'GLOBAL', 0, 'N1_DEPT', '部门评审', 10, 'DEPT_LEADER', '*', 'ANY', 1, NULL, 24, 3, 1, 2),
+(2, 'PERF_RECORD', 'GLOBAL', 0, 'N2_HR', 'HR 复核', 20, 'ROLE', 'HR_SPECIALIST', 'ANY', 1, 'N1_DEPT', 24, 3, 1, 2),
+(3, 'PERF_RECORD', 'GLOBAL', 0, 'N3_FINAL', '终审', 30, 'ROLE', 'EXECUTIVE', 'ANY', 1, 'N2_HR', 24, 3, 1, 2),
+(4, 'APPEAL', 'GLOBAL', 0, 'APPEAL_REVIEW', '申诉复核', 10, 'ROLE', 'EXECUTIVE', 'ANY', 0, NULL, 24, 3, 1, 2);
+
+-- -------------------------------------------------------------
+-- 4. 员工目标 perf_target / perf_target_item
+-- -------------------------------------------------------------
+-- 周期 2（2026-Q1）目标：3001-3006；历史目标：3101-3103（2025-Q3）、3104-3107（2025-Q4）
+-- uk_cycle_employee(cycle_id, employee_id) 保证一人一周期一份目标
+INSERT INTO perf_target (id, cycle_id, employee_id, dept_id, scheme_id, status, distributed_at, confirmed_at, create_by) VALUES
+(3001, 2, 5, 2, 1, 'CONFIRMED', '2026-01-06 09:00:00', '2026-01-08 10:20:00', 2),
+(3002, 2, 6, 2, 1, 'CONFIRMED', '2026-01-06 09:00:00', '2026-01-08 10:35:00', 2),
+(3003, 2, 7, 3, 1, 'CONFIRMED', '2026-01-06 09:00:00', '2026-01-08 11:05:00', 2),
+(3004, 2, 8, 4, 1, 'CONFIRMED', '2026-01-06 09:00:00', '2026-01-08 11:40:00', 2),
+(3005, 2, 4, 2, 1, 'CONFIRMED', '2026-01-06 09:00:00', '2026-01-08 15:10:00', 2),
+(3006, 2, 2, 4, 1, 'CONFIRMED', '2026-01-06 09:00:00', '2026-01-08 16:00:00', 2),
+(3101, 4, 5, 2, 2, 'CONFIRMED', '2025-07-09 09:00:00', '2025-07-11 10:00:00', 2),
+(3102, 4, 6, 2, 2, 'CONFIRMED', '2025-07-09 09:00:00', '2025-07-11 10:15:00', 2),
+(3103, 4, 7, 3, 2, 'CONFIRMED', '2025-07-09 09:00:00', '2025-07-11 10:30:00', 2),
+(3104, 1, 5, 2, 3, 'CONFIRMED', '2025-10-09 09:00:00', '2025-10-12 09:00:00', 2),
+(3105, 1, 6, 2, 3, 'CONFIRMED', '2025-10-09 09:00:00', '2025-10-12 09:10:00', 2),
+(3106, 1, 7, 3, 3, 'CONFIRMED', '2025-10-09 09:00:00', '2025-10-12 09:20:00', 2),
+(3107, 1, 8, 4, 3, 'CONFIRMED', '2025-10-09 09:00:00', '2025-10-12 09:30:00', 2);
+
+-- 4.1 目标明细：每份目标按方案 12 项下达（权重快照=指标默认权重）；定性项 target_value 为空
+INSERT INTO perf_target_item (id, target_id, scheme_item_id, indicator_id, factor_code, target_value, challenge_value, weight_snapshot, employee_comment, create_by) VALUES
+(5001, 3001, 1, 1, 'F1', 200.00, 240.00, 18.00, NULL, 2),
+(5002, 3001, 2, 2, 'F1', 100.00, 120.00, 8.00, NULL, 2),
+(5003, 3001, 3, 3, 'F1', 20.00, 24.00, 6.00, NULL, 2),
+(5004, 3001, 4, 4, 'F1', 25.00, 30.00, 5.00, NULL, 2),
+(5005, 3001, 5, 5, 'F1', 100.00, 120.00, 3.00, NULL, 2),
+(5006, 3001, 6, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5007, 3001, 7, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5008, 3001, 8, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5009, 3001, 9, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5010, 3001, 10, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5011, 3001, 11, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5012, 3001, 12, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5013, 3002, 1, 1, 'F1', 200.00, 240.00, 18.00, NULL, 2),
+(5014, 3002, 2, 2, 'F1', 100.00, 120.00, 8.00, NULL, 2),
+(5015, 3002, 3, 3, 'F1', 20.00, 24.00, 6.00, NULL, 2),
+(5016, 3002, 4, 4, 'F1', 25.00, 30.00, 5.00, NULL, 2),
+(5017, 3002, 5, 5, 'F1', 100.00, 120.00, 3.00, NULL, 2),
+(5018, 3002, 6, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5019, 3002, 7, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5020, 3002, 8, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5021, 3002, 9, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5022, 3002, 10, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5023, 3002, 11, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5024, 3002, 12, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5025, 3003, 1, 1, 'F1', 150.00, 180.00, 18.00, NULL, 2),
+(5026, 3003, 2, 2, 'F1', 100.00, 120.00, 8.00, NULL, 2),
+(5027, 3003, 3, 3, 'F1', 20.00, 24.00, 6.00, NULL, 2),
+(5028, 3003, 4, 4, 'F1', 50.00, 60.00, 5.00, NULL, 2),
+(5029, 3003, 5, 5, 'F1', 100.00, 120.00, 3.00, NULL, 2),
+(5030, 3003, 6, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5031, 3003, 7, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5032, 3003, 8, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5033, 3003, 9, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5034, 3003, 10, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5035, 3003, 11, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5036, 3003, 12, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5037, 3004, 1, 1, 'F1', 100.00, 120.00, 18.00, NULL, 2),
+(5038, 3004, 2, 2, 'F1', 100.00, 120.00, 8.00, NULL, 2),
+(5039, 3004, 3, 3, 'F1', 20.00, 24.00, 6.00, NULL, 2),
+(5040, 3004, 4, 4, 'F1', 50.00, 60.00, 5.00, NULL, 2),
+(5041, 3004, 5, 5, 'F1', 100.00, 120.00, 3.00, NULL, 2),
+(5042, 3004, 6, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5043, 3004, 7, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5044, 3004, 8, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5045, 3004, 9, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5046, 3004, 10, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5047, 3004, 11, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5048, 3004, 12, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5049, 3005, 1, 1, 'F1', 200.00, 240.00, 18.00, NULL, 2),
+(5050, 3005, 2, 2, 'F1', 100.00, 120.00, 8.00, NULL, 2),
+(5051, 3005, 3, 3, 'F1', 20.00, 24.00, 6.00, NULL, 2),
+(5052, 3005, 4, 4, 'F1', 25.00, 30.00, 5.00, NULL, 2),
+(5053, 3005, 5, 5, 'F1', 100.00, 120.00, 3.00, NULL, 2),
+(5054, 3005, 6, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5055, 3005, 7, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5056, 3005, 8, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5057, 3005, 9, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5058, 3005, 10, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5059, 3005, 11, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5060, 3005, 12, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5061, 3006, 1, 1, 'F1', 200.00, 240.00, 18.00, NULL, 2),
+(5062, 3006, 2, 2, 'F1', 100.00, 120.00, 8.00, NULL, 2),
+(5063, 3006, 3, 3, 'F1', 20.00, 24.00, 6.00, NULL, 2),
+(5064, 3006, 4, 4, 'F1', 25.00, 30.00, 5.00, NULL, 2),
+(5065, 3006, 5, 5, 'F1', 100.00, 120.00, 3.00, NULL, 2),
+(5066, 3006, 6, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5067, 3006, 7, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5068, 3006, 8, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5069, 3006, 9, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5070, 3006, 10, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5071, 3006, 11, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5072, 3006, 12, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5073, 3101, 13, 1, 'F1', 100.00, NULL, 18.00, NULL, 2),
+(5074, 3101, 14, 2, 'F1', 100.00, NULL, 8.00, NULL, 2),
+(5075, 3101, 15, 3, 'F1', 100.00, NULL, 6.00, NULL, 2),
+(5076, 3101, 16, 4, 'F1', 100.00, NULL, 5.00, NULL, 2),
+(5077, 3101, 17, 5, 'F1', 100.00, NULL, 3.00, NULL, 2),
+(5078, 3101, 18, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5079, 3101, 19, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5080, 3101, 20, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5081, 3101, 21, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5082, 3101, 22, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5083, 3101, 23, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5084, 3101, 24, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5085, 3102, 13, 1, 'F1', 100.00, NULL, 18.00, NULL, 2),
+(5086, 3102, 14, 2, 'F1', 100.00, NULL, 8.00, NULL, 2),
+(5087, 3102, 15, 3, 'F1', 100.00, NULL, 6.00, NULL, 2),
+(5088, 3102, 16, 4, 'F1', 100.00, NULL, 5.00, NULL, 2),
+(5089, 3102, 17, 5, 'F1', 100.00, NULL, 3.00, NULL, 2),
+(5090, 3102, 18, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5091, 3102, 19, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5092, 3102, 20, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5093, 3102, 21, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5094, 3102, 22, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5095, 3102, 23, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5096, 3102, 24, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5097, 3103, 13, 1, 'F1', 100.00, NULL, 18.00, NULL, 2),
+(5098, 3103, 14, 2, 'F1', 100.00, NULL, 8.00, NULL, 2),
+(5099, 3103, 15, 3, 'F1', 100.00, NULL, 6.00, NULL, 2),
+(5100, 3103, 16, 4, 'F1', 100.00, NULL, 5.00, NULL, 2),
+(5101, 3103, 17, 5, 'F1', 100.00, NULL, 3.00, NULL, 2),
+(5102, 3103, 18, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5103, 3103, 19, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5104, 3103, 20, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5105, 3103, 21, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5106, 3103, 22, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5107, 3103, 23, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5108, 3103, 24, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5109, 3104, 25, 1, 'F1', 100.00, NULL, 18.00, NULL, 2),
+(5110, 3104, 26, 2, 'F1', 100.00, NULL, 8.00, NULL, 2),
+(5111, 3104, 27, 3, 'F1', 100.00, NULL, 6.00, NULL, 2),
+(5112, 3104, 28, 4, 'F1', 100.00, NULL, 5.00, NULL, 2),
+(5113, 3104, 29, 5, 'F1', 100.00, NULL, 3.00, NULL, 2),
+(5114, 3104, 30, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5115, 3104, 31, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5116, 3104, 32, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5117, 3104, 33, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5118, 3104, 34, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5119, 3104, 35, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5120, 3104, 36, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5121, 3105, 25, 1, 'F1', 100.00, NULL, 18.00, NULL, 2),
+(5122, 3105, 26, 2, 'F1', 100.00, NULL, 8.00, NULL, 2),
+(5123, 3105, 27, 3, 'F1', 100.00, NULL, 6.00, NULL, 2),
+(5124, 3105, 28, 4, 'F1', 100.00, NULL, 5.00, NULL, 2),
+(5125, 3105, 29, 5, 'F1', 100.00, NULL, 3.00, NULL, 2),
+(5126, 3105, 30, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5127, 3105, 31, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5128, 3105, 32, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5129, 3105, 33, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5130, 3105, 34, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5131, 3105, 35, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5132, 3105, 36, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5133, 3106, 25, 1, 'F1', 100.00, NULL, 18.00, NULL, 2),
+(5134, 3106, 26, 2, 'F1', 100.00, NULL, 8.00, NULL, 2),
+(5135, 3106, 27, 3, 'F1', 100.00, NULL, 6.00, NULL, 2),
+(5136, 3106, 28, 4, 'F1', 100.00, NULL, 5.00, NULL, 2),
+(5137, 3106, 29, 5, 'F1', 100.00, NULL, 3.00, NULL, 2),
+(5138, 3106, 30, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5139, 3106, 31, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5140, 3106, 32, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5141, 3106, 33, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5142, 3106, 34, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5143, 3106, 35, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5144, 3106, 36, 12, 'F3', NULL, NULL, 7.00, NULL, 2),
+(5145, 3107, 25, 1, 'F1', 100.00, NULL, 18.00, NULL, 2),
+(5146, 3107, 26, 2, 'F1', 100.00, NULL, 8.00, NULL, 2),
+(5147, 3107, 27, 3, 'F1', 100.00, NULL, 6.00, NULL, 2),
+(5148, 3107, 28, 4, 'F1', 100.00, NULL, 5.00, NULL, 2),
+(5149, 3107, 29, 5, 'F1', 100.00, NULL, 3.00, NULL, 2),
+(5150, 3107, 30, 6, 'F2', NULL, NULL, 12.00, NULL, 2),
+(5151, 3107, 31, 7, 'F2', NULL, NULL, 10.00, NULL, 2),
+(5152, 3107, 32, 8, 'F2', NULL, NULL, 8.00, NULL, 2),
+(5153, 3107, 33, 9, 'F2', NULL, NULL, 5.00, NULL, 2),
+(5154, 3107, 34, 10, 'F3', NULL, NULL, 10.00, NULL, 2),
+(5155, 3107, 35, 11, 'F3', NULL, NULL, 8.00, NULL, 2),
+(5156, 3107, 36, 12, 'F3', NULL, NULL, 7.00, NULL, 2);
+
+-- -------------------------------------------------------------
+-- 5. 考评单 perf_record / perf_record_item
+-- -------------------------------------------------------------
+-- 历史单（周期 2025-Q3 / 2025-Q4，status=CLOSED）：1001-1007，仅提供 final_total 历史趋势取数
+-- 主线单（周期 2026-Q1）：2001-2004 为 docs/04 §7 的 A/B/C/D 四案例（AFTER_DEPT 口径，待 HR 复核）
+--                     2005 = 已提交待部门评审，2006 = 草稿（补充演示状态机）
+INSERT INTO perf_record (id, record_no, cycle_id, employee_id, dept_id, scheme_id, target_id, status, current_node_code, self_total, manager_total, hr_total, final_total, final_grade, submitted_at, dept_passed_at, hr_passed_at, finalized_at, result_confirmed_at, closed_at, deadline_at, aux_data, remark, create_by, update_by, version) VALUES
+(1001, 'RC202509300001', 4, 5, 2, 2, 3101, 'CLOSED', NULL, 75.00, 74.00, 74.00, 74.00, 'B', '2025-09-18 09:20:00', '2025-09-22 10:00:00', '2025-09-25 09:30:00', '2025-09-29 10:00:00', '2025-09-30 09:00:00', '2025-10-09 10:00:00', NULL, NULL, '历史考评单：仅用于本周期引擎的历史趋势取数', 2, 2, 6),
+(1002, 'RC202509300002', 4, 6, 2, 2, 3102, 'CLOSED', NULL, 79.00, 78.00, 78.00, 78.00, 'B', '2025-09-18 10:10:00', '2025-09-22 10:20:00', '2025-09-25 09:40:00', '2025-09-29 10:10:00', '2025-09-30 09:10:00', '2025-10-09 10:05:00', NULL, NULL, '历史考评单：仅用于本周期引擎的历史趋势取数', 2, 2, 6),
+(1003, 'RC202509300003', 4, 7, 3, 2, 3103, 'CLOSED', NULL, 64.00, 63.00, 63.00, 63.00, 'C', '2025-09-18 11:00:00', '2025-09-22 10:40:00', '2025-09-25 09:50:00', '2025-09-29 10:20:00', '2025-09-30 09:20:00', '2025-10-09 10:10:00', NULL, NULL, '历史考评单：仅用于本周期引擎的历史趋势取数', 2, 2, 6),
+(1004, 'RC202512310004', 1, 5, 2, 3, 3104, 'CLOSED', NULL, 77.00, 76.00, 76.00, 76.00, 'B', '2025-12-18 09:20:00', '2025-12-22 10:00:00', '2025-12-25 09:30:00', '2025-12-29 10:00:00', '2025-12-30 09:00:00', '2026-01-04 10:00:00', NULL, NULL, '历史考评单：仅用于本周期引擎的历史趋势取数', 2, 2, 6),
+(1005, 'RC202512310005', 1, 6, 2, 3, 3105, 'CLOSED', NULL, 79.00, 78.00, 78.00, 78.00, 'B', '2025-12-18 10:10:00', '2025-12-22 10:20:00', '2025-12-25 09:40:00', '2025-12-29 10:10:00', '2025-12-30 09:10:00', '2026-01-04 10:05:00', NULL, NULL, '历史考评单：仅用于本周期引擎的历史趋势取数', 2, 2, 6),
+(1006, 'RC202512310006', 1, 7, 3, 3, 3106, 'CLOSED', NULL, 66.00, 65.00, 65.00, 65.00, 'C', '2025-12-18 11:00:00', '2025-12-22 10:40:00', '2025-12-25 09:50:00', '2025-12-29 10:20:00', '2025-12-30 09:20:00', '2026-01-04 10:10:00', NULL, NULL, '历史考评单：仅用于本周期引擎的历史趋势取数', 2, 2, 6),
+(1007, 'RC202512310007', 1, 8, 4, 3, 3107, 'CLOSED', NULL, 74.00, 73.00, 73.00, 73.00, 'B', '2025-12-19 09:00:00', '2025-12-22 11:00:00', '2025-12-25 10:10:00', '2025-12-29 10:40:00', '2025-12-30 09:40:00', '2026-01-04 10:20:00', NULL, NULL, '历史考评单：仅用于本周期引擎的历史趋势取数', 2, 2, 6),
+(2001, 'RC202603160001', 2, 5, 2, 1, 3001, 'DEPT_PASSED', 'N2_HR', 88.00, 82.00, NULL, NULL, NULL, '2026-03-11 09:30:00', '2026-03-16 10:00:00', NULL, NULL, NULL, NULL, '2026-03-17 10:00:00', '{"attendanceRate": 92.00, "disciplineEvents": 0, "disciplineLevel": "NONE", "trainingHours": 20, "requiredTrainingHours": 24, "abilityTestAvg": 85.00, "peerScore": 83.00, "lastCycleCodes": ["2025-Q3", "2025-Q4"]}', '演示案例 A：期望 F1-F6=90/85/88/92/84/80，total=87.60，B_PLUS，无硬约束', 2, 2, 2),
+(2002, 'RC202603160002', 2, 6, 2, 1, 3002, 'DEPT_PASSED', 'N2_HR', 80.00, 80.00, NULL, NULL, NULL, '2026-03-12 14:20:00', '2026-03-16 15:30:00', NULL, NULL, NULL, NULL, '2026-03-17 15:30:00', '{"attendanceRate": 80.00, "disciplineEvents": 0, "disciplineLevel": "NONE", "trainingHours": 20, "requiredTrainingHours": 24, "abilityTestAvg": 65.00, "peerScore": 78.00, "lastCycleCodes": ["2025-Q3", "2025-Q4"]}', '演示案例 B：期望 total=79.94→79.9，B，出勤与 KPI 恰在阈值不封顶', 2, 2, 2),
+(2003, 'RC202603160003', 2, 7, 3, 1, 3003, 'DEPT_PASSED', 'N2_HR', 91.00, 64.00, NULL, NULL, NULL, '2026-03-12 16:40:00', '2026-03-17 09:10:00', NULL, NULL, NULL, NULL, '2026-03-18 09:10:00', '{"attendanceRate": 76.00, "disciplineEvents": 1, "disciplineLevel": "DEMERIT", "trainingHours": 16, "requiredTrainingHours": 24, "abilityTestAvg": 80.00, "peerScore": 78.00, "lastCycleCodes": ["2025-Q3", "2025-Q4"]}', '演示案例 C：期望 total=64.30，C，四约束命中（VETO/ATTENDANCE/KPI_LOW/GAP）', 2, 2, 2),
+(2004, 'RC202603160004', 2, 8, 4, 1, 3004, 'DEPT_PASSED', 'N2_HR', 75.00, 71.00, NULL, NULL, NULL, '2026-03-13 10:05:00', '2026-03-17 14:45:00', NULL, NULL, NULL, NULL, '2026-03-18 14:45:00', '{"attendanceRate": 88.00, "disciplineEvents": 0, "disciplineLevel": "NONE", "peerScore": 74.00, "lastCycleCodes": ["2025-Q4"]}', '演示案例 D：期望 MANUAL_REQUIRED，F1 缺失 40%，参考总分 77.11', 2, 2, 2),
+(2005, 'RC202603180005', 2, 4, 2, 1, 3005, 'SUBMITTED', 'N1_DEPT', 85.52, NULL, NULL, NULL, NULL, '2026-03-18 09:00:00', NULL, NULL, NULL, NULL, NULL, '2026-03-19 09:00:00', '{"attendanceRate": 95.00, "disciplineEvents": 0, "disciplineLevel": "NONE", "trainingHours": 24, "requiredTrainingHours": 24, "abilityTestAvg": 80.00, "peerScore": 80.00, "lastCycleCodes": []}', '补充演示：已提交待部门评审', 4, 4, 1),
+(2006, 'RC202603190006', 2, 2, 4, 1, 3006, 'DRAFT', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '{"attendanceRate": 98.00, "disciplineEvents": 0, "disciplineLevel": "NONE", "trainingHours": 10, "requiredTrainingHours": 24, "peerScore": 85.00, "lastCycleCodes": []}', '补充演示：草稿态，员工填报中', 2, 2, 0);
+
+-- 5.1 考评明细 perf_record_item：权重快照/目标值快照/实际值/达成率/三阶段分/最终分
+--     定量项 rate 按 actual/target 折算（rateCap=120，得分封顶 100）；缺失项 actual/rate/分数均为 NULL
+INSERT INTO perf_record_item (id, record_id, scheme_item_id, indicator_id, factor_code, weight_snapshot, target_value_snapshot, actual_value, achievement_rate, self_score, manager_score, hr_score, final_score, self_comment, manager_comment, data_source, create_by) VALUES
+(6001, 1001, 13, 1, 'F1', 18.00, 100.00, 74.00, 74.00, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6002, 1001, 14, 2, 'F1', 8.00, 100.00, 74.00, 74.00, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6003, 1001, 15, 3, 'F1', 6.00, 100.00, 74.00, 74.00, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6004, 1001, 16, 4, 'F1', 5.00, 100.00, 74.00, 74.00, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6005, 1001, 17, 5, 'F1', 3.00, 100.00, 74.00, 74.00, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6006, 1001, 18, 6, 'F2', 12.00, NULL, NULL, NULL, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6007, 1001, 19, 7, 'F2', 10.00, NULL, NULL, NULL, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6008, 1001, 20, 8, 'F2', 8.00, NULL, NULL, NULL, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6009, 1001, 21, 9, 'F2', 5.00, NULL, NULL, NULL, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6010, 1001, 22, 10, 'F3', 10.00, NULL, NULL, NULL, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6011, 1001, 23, 11, 'F3', 8.00, NULL, NULL, NULL, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6012, 1001, 24, 12, 'F3', 7.00, NULL, NULL, NULL, 74.00, 74.00, NULL, 74.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6013, 1002, 13, 1, 'F1', 18.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6014, 1002, 14, 2, 'F1', 8.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6015, 1002, 15, 3, 'F1', 6.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6016, 1002, 16, 4, 'F1', 5.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6017, 1002, 17, 5, 'F1', 3.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6018, 1002, 18, 6, 'F2', 12.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6019, 1002, 19, 7, 'F2', 10.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6020, 1002, 20, 8, 'F2', 8.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6021, 1002, 21, 9, 'F2', 5.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6022, 1002, 22, 10, 'F3', 10.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6023, 1002, 23, 11, 'F3', 8.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6024, 1002, 24, 12, 'F3', 7.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6025, 1003, 13, 1, 'F1', 18.00, 100.00, 63.00, 63.00, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6026, 1003, 14, 2, 'F1', 8.00, 100.00, 63.00, 63.00, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6027, 1003, 15, 3, 'F1', 6.00, 100.00, 63.00, 63.00, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6028, 1003, 16, 4, 'F1', 5.00, 100.00, 63.00, 63.00, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6029, 1003, 17, 5, 'F1', 3.00, 100.00, 63.00, 63.00, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6030, 1003, 18, 6, 'F2', 12.00, NULL, NULL, NULL, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6031, 1003, 19, 7, 'F2', 10.00, NULL, NULL, NULL, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6032, 1003, 20, 8, 'F2', 8.00, NULL, NULL, NULL, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6033, 1003, 21, 9, 'F2', 5.00, NULL, NULL, NULL, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6034, 1003, 22, 10, 'F3', 10.00, NULL, NULL, NULL, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6035, 1003, 23, 11, 'F3', 8.00, NULL, NULL, NULL, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6036, 1003, 24, 12, 'F3', 7.00, NULL, NULL, NULL, 63.00, 63.00, NULL, 63.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6037, 1004, 25, 1, 'F1', 18.00, 100.00, 76.00, 76.00, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6038, 1004, 26, 2, 'F1', 8.00, 100.00, 76.00, 76.00, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6039, 1004, 27, 3, 'F1', 6.00, 100.00, 76.00, 76.00, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6040, 1004, 28, 4, 'F1', 5.00, 100.00, 76.00, 76.00, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6041, 1004, 29, 5, 'F1', 3.00, 100.00, 76.00, 76.00, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6042, 1004, 30, 6, 'F2', 12.00, NULL, NULL, NULL, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6043, 1004, 31, 7, 'F2', 10.00, NULL, NULL, NULL, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6044, 1004, 32, 8, 'F2', 8.00, NULL, NULL, NULL, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6045, 1004, 33, 9, 'F2', 5.00, NULL, NULL, NULL, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6046, 1004, 34, 10, 'F3', 10.00, NULL, NULL, NULL, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6047, 1004, 35, 11, 'F3', 8.00, NULL, NULL, NULL, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6048, 1004, 36, 12, 'F3', 7.00, NULL, NULL, NULL, 76.00, 76.00, NULL, 76.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6049, 1005, 25, 1, 'F1', 18.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6050, 1005, 26, 2, 'F1', 8.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6051, 1005, 27, 3, 'F1', 6.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6052, 1005, 28, 4, 'F1', 5.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6053, 1005, 29, 5, 'F1', 3.00, 100.00, 78.00, 78.00, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6054, 1005, 30, 6, 'F2', 12.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6055, 1005, 31, 7, 'F2', 10.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6056, 1005, 32, 8, 'F2', 8.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6057, 1005, 33, 9, 'F2', 5.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6058, 1005, 34, 10, 'F3', 10.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6059, 1005, 35, 11, 'F3', 8.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6060, 1005, 36, 12, 'F3', 7.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6061, 1006, 25, 1, 'F1', 18.00, 100.00, 65.00, 65.00, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6062, 1006, 26, 2, 'F1', 8.00, 100.00, 65.00, 65.00, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6063, 1006, 27, 3, 'F1', 6.00, 100.00, 65.00, 65.00, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6064, 1006, 28, 4, 'F1', 5.00, 100.00, 65.00, 65.00, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6065, 1006, 29, 5, 'F1', 3.00, 100.00, 65.00, 65.00, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6066, 1006, 30, 6, 'F2', 12.00, NULL, NULL, NULL, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6067, 1006, 31, 7, 'F2', 10.00, NULL, NULL, NULL, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6068, 1006, 32, 8, 'F2', 8.00, NULL, NULL, NULL, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6069, 1006, 33, 9, 'F2', 5.00, NULL, NULL, NULL, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6070, 1006, 34, 10, 'F3', 10.00, NULL, NULL, NULL, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6071, 1006, 35, 11, 'F3', 8.00, NULL, NULL, NULL, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6072, 1006, 36, 12, 'F3', 7.00, NULL, NULL, NULL, 65.00, 65.00, NULL, 65.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6073, 1007, 25, 1, 'F1', 18.00, 100.00, 73.00, 73.00, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6074, 1007, 26, 2, 'F1', 8.00, 100.00, 73.00, 73.00, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6075, 1007, 27, 3, 'F1', 6.00, 100.00, 73.00, 73.00, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6076, 1007, 28, 4, 'F1', 5.00, 100.00, 73.00, 73.00, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6077, 1007, 29, 5, 'F1', 3.00, 100.00, 73.00, 73.00, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6078, 1007, 30, 6, 'F2', 12.00, NULL, NULL, NULL, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6079, 1007, 31, 7, 'F2', 10.00, NULL, NULL, NULL, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6080, 1007, 32, 8, 'F2', 8.00, NULL, NULL, NULL, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6081, 1007, 33, 9, 'F2', 5.00, NULL, NULL, NULL, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6082, 1007, 34, 10, 'F3', 10.00, NULL, NULL, NULL, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6083, 1007, 35, 11, 'F3', 8.00, NULL, NULL, NULL, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6084, 1007, 36, 12, 'F3', 7.00, NULL, NULL, NULL, 73.00, 73.00, NULL, 73.00, '历史单留痕', '历史单留痕', 'SEED', 2),
+(6085, 2001, 1, 1, 'F1', 18.00, 200.00, 188.00, 94.00, 95.00, 94.00, NULL, 94.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6086, 2001, 2, 2, 'F1', 8.00, 100.00, 68.00, 68.00, 70.00, 68.00, NULL, 68.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6087, 2001, 3, 3, 'F1', 6.00, 20.00, 18.80, 94.00, 94.00, 94.00, NULL, 94.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6088, 2001, 4, 4, 'F1', 5.00, 25.00, 28.00, 112.00, 100.00, 100.00, NULL, 100.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6089, 2001, 5, 5, 'F1', 3.00, 100.00, 100.00, 100.00, 100.00, 100.00, NULL, 100.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6090, 2001, 6, 6, 'F2', 12.00, NULL, NULL, NULL, 86.00, 85.00, NULL, 85.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6091, 2001, 7, 7, 'F2', 10.00, NULL, NULL, NULL, 86.00, 85.00, NULL, 85.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6092, 2001, 8, 8, 'F2', 8.00, NULL, NULL, NULL, 84.00, 85.00, NULL, 85.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6093, 2001, 9, 9, 'F2', 5.00, NULL, NULL, NULL, 88.00, 85.00, NULL, 85.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6094, 2001, 10, 10, 'F3', 10.00, NULL, NULL, NULL, 90.00, 88.00, NULL, 88.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6095, 2001, 11, 11, 'F3', 8.00, NULL, NULL, NULL, 89.00, 88.00, NULL, 88.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6096, 2001, 12, 12, 'F3', 7.00, NULL, NULL, NULL, 90.00, 88.00, NULL, 88.00, '自评：按计划完成', '部门评：完成情况符合预期', 'SEED', 2),
+(6097, 2002, 1, 1, 'F1', 18.00, 200.00, 120.00, 60.00, 80.00, 80.00, NULL, 80.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6098, 2002, 2, 2, 'F1', 8.00, 100.00, 100.00, 100.00, 80.00, 80.00, NULL, 80.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6099, 2002, 3, 3, 'F1', 6.00, 20.00, 20.00, 100.00, 80.00, 80.00, NULL, 80.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6100, 2002, 4, 4, 'F1', 5.00, 25.00, 25.00, 100.00, 80.00, 80.00, NULL, 80.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6101, 2002, 5, 5, 'F1', 3.00, 100.00, 98.00, 98.00, 80.00, 80.00, NULL, 80.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6102, 2002, 6, 6, 'F2', 12.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6103, 2002, 7, 7, 'F2', 10.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6104, 2002, 8, 8, 'F2', 8.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6105, 2002, 9, 9, 'F2', 5.00, NULL, NULL, NULL, 78.00, 78.00, NULL, 78.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6106, 2002, 10, 10, 'F3', 10.00, NULL, NULL, NULL, 80.00, 80.00, NULL, 80.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6107, 2002, 11, 11, 'F3', 8.00, NULL, NULL, NULL, 80.00, 80.00, NULL, 80.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6108, 2002, 12, 12, 'F3', 7.00, NULL, NULL, NULL, 80.00, 80.00, NULL, 80.00, '自评：基本达成目标', '部门评：与自评一致', 'SEED', 2),
+(6109, 2003, 1, 1, 'F1', 18.00, 150.00, 82.50, 55.00, 90.00, 55.00, NULL, 55.00, '受项目延期影响，销售额仅完成 82.5 万', '销售额严重未达（55.00%），按制度需重点改进', 'SEED', 2),
+(6110, 2003, 2, 2, 'F1', 8.00, 100.00, 60.00, 60.00, 65.00, 60.00, NULL, 60.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6111, 2003, 3, 3, 'F1', 6.00, 20.00, 12.00, 60.00, 65.00, 60.00, NULL, 60.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6112, 2003, 4, 4, 'F1', 5.00, 50.00, 31.00, 62.00, 65.00, 62.00, NULL, 62.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6113, 2003, 5, 5, 'F1', 3.00, 100.00, 60.00, 60.00, 65.00, 60.00, NULL, 60.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6114, 2003, 6, 6, 'F2', 12.00, NULL, NULL, NULL, 72.00, 66.00, NULL, 66.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6115, 2003, 7, 7, 'F2', 10.00, NULL, NULL, NULL, 70.00, 66.00, NULL, 66.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6116, 2003, 8, 8, 'F2', 8.00, NULL, NULL, NULL, 68.00, 66.00, NULL, 66.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6117, 2003, 9, 9, 'F2', 5.00, NULL, NULL, NULL, 70.00, 66.00, NULL, 66.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6118, 2003, 10, 10, 'F3', 10.00, NULL, NULL, NULL, 75.00, 70.00, NULL, 70.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6119, 2003, 11, 11, 'F3', 8.00, NULL, NULL, NULL, 72.00, 70.00, NULL, 70.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6120, 2003, 12, 12, 'F3', 7.00, NULL, NULL, NULL, 74.00, 70.00, NULL, 70.00, '自评按计划完成情况打分', '部门复核下调：交付与回款均未达预期', 'SEED', 2),
+(6121, 2004, 1, 1, 'F1', 18.00, 100.00, 72.00, 72.00, 72.00, 72.00, NULL, 72.00, '自评：按已完成指标填报', '部门评：缺失指标待补数后复核', 'SEED', 2),
+(6122, 2004, 2, 2, 'F1', 8.00, 100.00, NULL, NULL, NULL, NULL, NULL, NULL, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6123, 2004, 3, 3, 'F1', 6.00, 20.00, 14.40, 72.00, 72.00, 72.00, NULL, 72.00, '自评：按已完成指标填报', '部门评：缺失指标待补数后复核', 'SEED', 2),
+(6124, 2004, 4, 4, 'F1', 5.00, 50.00, NULL, NULL, NULL, NULL, NULL, NULL, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6125, 2004, 5, 5, 'F1', 3.00, 100.00, NULL, NULL, NULL, NULL, NULL, NULL, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6126, 2004, 6, 6, 'F2', 12.00, NULL, NULL, NULL, 82.00, 80.00, NULL, 80.00, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6127, 2004, 7, 7, 'F2', 10.00, NULL, NULL, NULL, 80.00, 80.00, NULL, 80.00, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6128, 2004, 8, 8, 'F2', 8.00, NULL, NULL, NULL, 79.00, 80.00, NULL, 80.00, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6129, 2004, 9, 9, 'F2', 5.00, NULL, NULL, NULL, 81.00, 80.00, NULL, 80.00, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6130, 2004, 10, 10, 'F3', 10.00, NULL, NULL, NULL, 84.00, 82.00, NULL, 82.00, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6131, 2004, 11, 11, 'F3', 8.00, NULL, NULL, NULL, 82.00, 82.00, NULL, 82.00, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6132, 2004, 12, 12, 'F3', 7.00, NULL, NULL, NULL, 83.00, 82.00, NULL, 82.00, '实际值未填报（缺失），本数据点计入缺失权重', '缺实际值，无法折算达成率，待员工补数', 'SEED', 2),
+(6133, 2005, 1, 1, 'F1', 18.00, 200.00, 170.00, 85.00, 85.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6134, 2005, 2, 2, 'F1', 8.00, 100.00, 92.00, 92.00, 92.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6135, 2005, 3, 3, 'F1', 6.00, 20.00, 16.00, 80.00, 80.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6136, 2005, 4, 4, 'F1', 5.00, 25.00, 24.00, 96.00, 96.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6137, 2005, 5, 5, 'F1', 3.00, 100.00, 90.00, 90.00, 90.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6138, 2005, 6, 6, 'F2', 12.00, NULL, NULL, NULL, 80.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6139, 2005, 7, 7, 'F2', 10.00, NULL, NULL, NULL, 78.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6140, 2005, 8, 8, 'F2', 8.00, NULL, NULL, NULL, 79.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6141, 2005, 9, 9, 'F2', 5.00, NULL, NULL, NULL, 82.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6142, 2005, 10, 10, 'F3', 10.00, NULL, NULL, NULL, 85.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6143, 2005, 11, 11, 'F3', 8.00, NULL, NULL, NULL, 82.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6144, 2005, 12, 12, 'F3', 7.00, NULL, NULL, NULL, 84.00, NULL, NULL, NULL, '自评：已完成填报，待部门评审', NULL, 'SEED', 2),
+(6145, 2006, 1, 1, 'F1', 18.00, 200.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6146, 2006, 2, 2, 'F1', 8.00, 100.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6147, 2006, 3, 3, 'F1', 6.00, 20.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6148, 2006, 4, 4, 'F1', 5.00, 25.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6149, 2006, 5, 5, 'F1', 3.00, 100.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6150, 2006, 6, 6, 'F2', 12.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6151, 2006, 7, 7, 'F2', 10.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6152, 2006, 8, 8, 'F2', 8.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6153, 2006, 9, 9, 'F2', 5.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6154, 2006, 10, 10, 'F3', 10.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6155, 2006, 11, 11, 'F3', 8.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2),
+(6156, 2006, 12, 12, 'F3', 7.00, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SEED', 2);
+
+-- -------------------------------------------------------------
+-- 6. 阶段评分单 perf_score_sheet（自评 / 部门评留痕）
+-- -------------------------------------------------------------
+-- 与 perf_record.self_total / manager_total 对齐；HR/FINAL 阶段尚未发生，故不建单
+INSERT INTO perf_score_sheet (id, record_id, stage, evaluator_id, total_score, overall_comment, created_at) VALUES
+(7001, 2001, 'SELF', 5, 88.00, '本季度重点客户签约顺利，自评 88 分', '2026-03-11 09:30:00'),
+(7002, 2001, 'DEPT', 3, 82.00, '整体完成较好，交付及时率满分，回款略低', '2026-03-16 10:00:00'),
+(7003, 2002, 'SELF', 6, 80.00, '按目标推进，自评 80 分', '2026-03-12 14:20:00'),
+(7004, 2002, 'DEPT', 3, 80.00, '与自评一致，无调整', '2026-03-16 15:30:00'),
+(7005, 2003, 'SELF', 7, 91.00, '自评认为项目投入大，应给 91 分', '2026-03-12 16:40:00'),
+(7006, 2003, 'DEPT', 9, 64.00, '销售额与交付均未达标，且存在一次记过', '2026-03-17 09:10:00'),
+(7007, 2004, 'SELF', 8, 75.00, '部分指标无数据，按已完成部分自评', '2026-03-13 10:05:00'),
+(7008, 2004, 'DEPT', 10, 71.00, '数据缺失较多，待补数后复核', '2026-03-17 14:45:00'),
+(7009, 2005, 'SELF', 4, 85.52, '自评已提交，等待部门评审', '2026-03-18 09:00:00');
+
+-- -------------------------------------------------------------
+-- 7. 审批任务 appr_task
+-- -------------------------------------------------------------
+-- 四个案例单（DEPT_PASSED，当前节点 N2_HR）：N1 已通过 + N2 待 HR 复核（hr01=user 2）
+-- 2005（SUBMITTED，当前节点 N1_DEPT）：部门评审待办（manager01=user 3）
+INSERT INTO appr_task (id, biz_type, biz_id, node_code, node_seq, assignee_id, assignee_role, sign_type, status, action_comment, handled_at, remind_count, next_remind_at, created_at) VALUES
+(8001, 'PERF_RECORD', 2001, 'N1_DEPT', 10, 3, 'DEPT_MANAGER', 'ANY', 'APPROVED', '部门评审通过', '2026-03-16 10:00:00', 0, NULL, '2026-03-11 09:30:00'),
+(8002, 'PERF_RECORD', 2001, 'N2_HR', 20, 2, 'HR_SPECIALIST', 'ANY', 'PENDING', NULL, NULL, 0, DATE_ADD('2026-03-16 10:00:00', INTERVAL 24 HOUR), '2026-03-16 10:00:00'),
+(8003, 'PERF_RECORD', 2002, 'N1_DEPT', 10, 3, 'DEPT_MANAGER', 'ANY', 'APPROVED', '部门评审通过', '2026-03-16 15:30:00', 0, NULL, '2026-03-12 14:20:00'),
+(8004, 'PERF_RECORD', 2002, 'N2_HR', 20, 2, 'HR_SPECIALIST', 'ANY', 'PENDING', NULL, NULL, 0, DATE_ADD('2026-03-16 15:30:00', INTERVAL 24 HOUR), '2026-03-16 15:30:00'),
+(8005, 'PERF_RECORD', 2003, 'N1_DEPT', 10, 9, 'DEPT_MANAGER', 'ANY', 'APPROVED', '部门评审通过，反馈见评分意见', '2026-03-17 09:10:00', 0, NULL, '2026-03-12 16:40:00'),
+(8006, 'PERF_RECORD', 2003, 'N2_HR', 20, 2, 'HR_SPECIALIST', 'ANY', 'PENDING', NULL, NULL, 0, DATE_ADD('2026-03-17 09:10:00', INTERVAL 24 HOUR), '2026-03-17 09:10:00'),
+(8007, 'PERF_RECORD', 2004, 'N1_DEPT', 10, 10, 'DEPT_MANAGER', 'ANY', 'APPROVED', '数据缺失较多，先通过评审', '2026-03-17 14:45:00', 0, NULL, '2026-03-13 10:05:00'),
+(8008, 'PERF_RECORD', 2004, 'N2_HR', 20, 2, 'HR_SPECIALIST', 'ANY', 'PENDING', NULL, NULL, 0, DATE_ADD('2026-03-17 14:45:00', INTERVAL 24 HOUR), '2026-03-17 14:45:00'),
+(8009, 'PERF_RECORD', 2005, 'N1_DEPT', 10, 3, 'DEPT_MANAGER', 'ANY', 'PENDING', NULL, NULL, 0, DATE_ADD('2026-03-18 09:00:00', INTERVAL 24 HOUR), '2026-03-18 09:00:00');
+
+-- -------------------------------------------------------------
+-- 8. 四个验证案例的期望计算（docs/04 §7，容差 0.01）
+-- -------------------------------------------------------------
+-- 案例 A（record 2001，E1001 张晓明，AFTER_DEPT）：
+--   F1=(18*94+8*68+6*94+5*100+3*100)/40=90.00；F2=85.00；F3=88.00；
+--   F4=92-0*10=92.00；F5=(20/24)*60+85*0.4=84.00；F6=(83+MIN(100,(74+76)/2+2))/2=(83+77)/2=80.00
+--   total=36.00+17.00+13.20+9.20+4.20+8.00=87.60 → B_PLUS；无硬约束；confidence=0.964；needManual=false
+--   self_total=88.00 / manager_total=82.00 → 差 6 → consistency=1-6/50=0.880；completeness=1.000；historyCov=1.000
+-- 案例 B（record 2002，E1002 李娜，AFTER_DEPT）：
+--   F1=(18*60+8*100+6*100+5*100+3*98)/40=81.85；F2=78.00；F3=80.00；F4=80.00（恰 80，不触发 HC_ATTENDANCE）；
+--   F5=(20/24)*60+65*0.4=76.00；F6=(78+78)/2=78.00
+--   total=32.74+15.60+12.00+8.00+3.80+7.80=79.94 → round1=79.9 → B；HC_KPI_LOW 恰 60.00 不触发；confidence=1.000
+--   self/manager=80/80 → 差 0 → consistency=1.000；completeness=1.000；historyCov=1.000 → confidence=1.000
+-- 案例 C（record 2003，E1003 王强，AFTER_DEPT）：
+--   F1=(18*55+8*60+6*60+5*62+3*60)/40=58.00；F2=66.00；F3=70.00；F4=76-1*10=66.00；
+--   F5=(16/24)*60+80*0.4=72.00；F6=(78+((63+65)/2+2))/2=(78+66)/2=72.00
+--   total=23.20+13.20+10.50+6.60+3.60+7.20=64.30 → C；命中 HC_DISCIPLINE_VETO / HC_ATTENDANCE /
+--   HC_KPI_LOW(w=18,rate=55) / HC_SCORE_GAP(|91-64|=27)；confidence=0.838；needManual=true
+--   self/manager=91/64 → 差 27 → consistency=1-27/50=0.460；completeness=1.000；historyCov=1.000 → confidence=0.838
+-- 案例 D（record 2004，E1004 赵敏，AFTER_DEPT）：
+--   F1 缺失 3 项（indicator 2/4/5，权重 8+5+3=16 → 缺失率 40%），在场 (18*72+6*72)/24=72.00；
+--   F2=80.00；F3=82.00；F4=88.00；F5 不可用（学时与测评均缺，缺失权重 5）；F6=(74+73)/2=73.50
+--   missingRatio=(16+5)/100=21% > 20% → HC_DATA_MISSING；F1 缺失 40% > 20% → suggestedGrade=MANUAL_REQUIRED
+--   参考总分=(72*.4+80*.2+82*.15+88*.1+73.5*.1)/0.95=73.25/0.95=77.11；confidence=min(0.771,0.500)=0.500
+--   self/manager=75/71 → 差 4 → consistency=0.920；completeness=1-0.21=0.790；historyCov=0.5 → 0.395+0.276+0.100=0.771
+
+-- -------------------------------------------------------------
+-- 9. 自检 SQL（可选：手工核对，不在初始化时执行）
+-- -------------------------------------------------------------
+-- 各表行数：
+-- SELECT (SELECT COUNT(*) FROM perf_scheme) scheme,(SELECT COUNT(*) FROM perf_scheme_item) scheme_item,
+--        (SELECT COUNT(*) FROM perf_target) target,(SELECT COUNT(*) FROM perf_target_item) target_item,
+--        (SELECT COUNT(*) FROM perf_record) record,(SELECT COUNT(*) FROM perf_record_item) record_item,
+--        (SELECT COUNT(*) FROM appr_task) task,(SELECT COUNT(*) FROM perf_score_sheet) sheet;
+-- 方案权重校验（应各为 100.00）：
+-- SELECT scheme_id, SUM(weight) FROM perf_scheme_item GROUP BY scheme_id;
+-- 四个案例单：
+-- SELECT id, record_no, employee_id, status, self_total, manager_total FROM perf_record WHERE id BETWEEN 2001 AND 2004 ORDER BY id;
+-- 案例 D 的 F1 缺失项与缺失权重（应 3 项 / 16.00）：
+-- SELECT COUNT(*) missing_items, SUM(weight_snapshot) missing_weight FROM perf_record_item
+--  WHERE record_id=2004 AND factor_code='F1' AND actual_value IS NULL;
+-- 历史趋势取数（每员工 status=CLOSED 的历史分，按周期倒序）：
+-- SELECT r.employee_id, c.cycle_code, r.final_total FROM perf_record r JOIN perf_cycle c ON c.id=r.cycle_id
+--  WHERE r.status='CLOSED' ORDER BY r.employee_id, c.start_date;
+
+COMMIT;
+
+
+-- =============================================================
+-- 说明与取舍（与 docs/04 原文的差异，均为使断言可复现而取值）：
+-- 1) 案例 A 的 aux_data 取 abilityTestAvg=85.00、peerScore=83.00：
+--    docs/04 §7.1 写 abilityTestAvg=84、peerScore=80，但按其 F5=(20/24)*60+84*0.4=83.60、
+--    F6=(80+77)/2=78.50，与文档自己的 F5=84.00 / F6=80.00 / total=87.60 / confidence=0.964 不符。
+--    本 seed 保留 F5=84.00、F6=80.00、total=87.60、confidence=0.964 这些断言值，
+--    故仅将这两项输入上浮（84→85、80→83），其余输入与文档一致。
+-- 2) 案例 D 在 docs/04 中按"8 项 F1 指标"描述（缺失权重 6+5+5=16）；
+--    现指标库 F1 只有 5 项（18/8/6/5/3，合计 40），本 seed 改为缺失 indicator 2/4/5
+--    （8+5+3=16），缺失权重、F1 缺失率 40%、在场加权得分 72.00、missingRatio 21% 全部保持文档口径。
+-- 3) 历史趋势需要"最近两期 CLOSED 考评单"，seed.sql 只有 2025-Q4 一个 CLOSED 周期，
+--    故本文件补一个已关闭周期 2025-Q3（id=4）。案例 D 只造 2025-Q4 一期（历史仅 1 期=73，historyCov=0.5）。
+-- 4) 历史单（1001-1007）只保留 final_total/grade 与明细，aux_data 置空——引擎历史趋势只读 final_total。
+-- 5) 方案 2/3 为历史周期方案，只建指标项，不重复建 factor_config / hard_constraint / grade_band
+--    （历史单不再参与引擎评分）。
+-- 6) appr_node_config 为审批任务生成的前置配置，seed.sql 未内置，随本文件补充（GLOBAL 作用域）。
+-- 7) 未造 perf_recommendation_snapshot / perf_manual_conclusion：快照与结论必须由引擎和人工终端动作产生，
+--    预置会与"引擎实时计算"口径冲突（docs/04 §8：无快照不得作结论）。
+-- =============================================================

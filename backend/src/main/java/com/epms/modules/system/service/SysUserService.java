@@ -18,6 +18,12 @@ import com.epms.modules.system.mapper.SysUserRoleMapper;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -91,15 +97,17 @@ public class SysUserService extends ServiceImpl<SysUserMapper, SysUser> {
                 .collect(Collectors.toSet());
         
         // 批量查询部门
-        Map<Long, SysDept> deptMap = Collections.emptyMap();
+        final Map<Long, SysDept> deptMap;
         if (!deptIds.isEmpty()) {
             List<SysDept> depts = deptService.listByIds(deptIds);
             deptMap = depts.stream().collect(Collectors.toMap(SysDept::getId, d -> d));
+        } else {
+            deptMap = Collections.emptyMap();
         }
         
         // 批量查询用户角色
-        Map<Long, List<SysRole>> userRoleMap = Collections.emptyMap();
-        Map<Long, SysRole> roleMap = Collections.emptyMap();
+        final Map<Long, List<SysUserRole>> userRoleMap;
+        final Map<Long, SysRole> roleMap;
         if (!userIds.isEmpty()) {
             List<SysUserRole> userRoles = userRoleMapper.selectList(
                     new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getUserId, userIds)
@@ -108,10 +116,15 @@ public class SysUserService extends ServiceImpl<SysUserMapper, SysUser> {
             if (!roleIds.isEmpty()) {
                 List<SysRole> roles = roleMapper.selectBatchIds(roleIds);
                 roleMap = roles.stream().collect(Collectors.toMap(SysRole::getId, r -> r));
+            } else {
+                roleMap = Collections.emptyMap();
             }
             // 按用户分组
             userRoleMap = userRoles.stream()
                     .collect(Collectors.groupingBy(SysUserRole::getUserId));
+        } else {
+            userRoleMap = Collections.emptyMap();
+            roleMap = Collections.emptyMap();
         }
         
         // 转换为 VO（使用批量查询的结果）
@@ -318,7 +331,7 @@ public class SysUserService extends ServiceImpl<SysUserMapper, SysUser> {
      * 转换为 VO（批量查询，用于列表）
      */
     private UserVO toUserVO(SysUser user, Map<Long, SysDept> deptMap, 
-                           Map<Long, List<SysRole>> userRoleMap, Map<Long, SysRole> roleMap) {
+                           Map<Long, List<SysUserRole>> userRoleMap, Map<Long, SysRole> roleMap) {
         UserVO vo = new UserVO();
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
@@ -389,26 +402,58 @@ public class SysUserService extends ServiceImpl<SysUserMapper, SysUser> {
      */
     @Data
     public static class CreateUserDTO {
+        @NotBlank(message = "用户名不能为空")
+        @Size(max = 32, message = "用户名不能超过32个字符")
+        @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "用户名只能包含字母、数字和下划线")
         private String username;
+
+        @NotBlank(message = "姓名不能为空")
+        @Size(max = 32, message = "姓名不能超过32个字符")
         private String realName;
+
+        @Size(max = 32, message = "工号不能超过32个字符")
         private String employeeNo;
+
+        @NotNull(message = "请选择部门")
         private Long deptId;
+
+        @Size(max = 64, message = "岗位不能超过64个字符")
         private String positionTitle;
+
+        @Size(max = 20, message = "手机号不能超过20个字符")
         private String mobile;
+
+        @Email(message = "邮箱格式不正确")
+        @Size(max = 64, message = "邮箱不能超过64个字符")
         private String email;
+
+        @NotEmpty(message = "至少选择一个角色")
         private List<Long> roleIds;
     }
-    
+
     /**
      * 更新用户 DTO
      */
     @Data
     public static class UpdateUserDTO {
+        @NotBlank(message = "姓名不能为空")
+        @Size(max = 32, message = "姓名不能超过32个字符")
         private String realName;
+
+        @NotNull(message = "请选择部门")
         private Long deptId;
+
+        @Size(max = 64, message = "岗位不能超过64个字符")
         private String positionTitle;
+
+        @Size(max = 20, message = "手机号不能超过20个字符")
         private String mobile;
+
+        @Email(message = "邮箱格式不正确")
+        @Size(max = 64, message = "邮箱不能超过64个字符")
         private String email;
+
+        @NotEmpty(message = "至少选择一个角色")
         private List<Long> roleIds;
     }
 }

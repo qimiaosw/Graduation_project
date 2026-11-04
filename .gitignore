@@ -28,3 +28,10 @@ Thumbs.db
 
 # 临时截图
 .screenshots/
+
+# 数据库备份（含账号密码哈希/手机号，禁止提交）
+db/backup_*.sql
+db/*.dump
+
+# 本地验证输出存档
+verify-result.txt
